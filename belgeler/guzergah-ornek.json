@@ -1,0 +1,305 @@
+{
+  "baslik": "Pendik → Boğaz geçişleri",
+  "guzergahlar": [
+    {
+      "ad": "E-5 · 15 Temmuz",
+      "nereden": [
+        40.88804,
+        29.2392
+      ],
+      "nereye": [
+        41.03828,
+        29.042
+      ],
+      "kacin": [
+        [
+          [
+            40.983,
+            29.1
+          ],
+          [
+            41.04,
+            29.26
+          ]
+        ]
+      ],
+      "not": "Pendik Kavsagi -> 15 Temmuz Anadolu girisi (O-1 bati yonu seridi, OSM way 44173957). Hedef seritte oldugu icin rota baska kopruye gidemez. Kacinilan: TEM koridoru. 1 Kasim olculdu.",
+      "duraklar": [
+        {
+          "ad": "Pendik",
+          "nokta": [
+            40.88804,
+            29.2392
+          ]
+        },
+        {
+          "ad": "Kartal",
+          "nokta": [
+            40.9099,
+            29.20094
+          ]
+        },
+        {
+          "ad": "Maltepe",
+          "nokta": [
+            40.92342,
+            29.15725
+          ]
+        },
+        {
+          "ad": "Bostancı",
+          "nokta": [
+            40.96329,
+            29.10351
+          ]
+        },
+        {
+          "ad": "Kozyatağı",
+          "nokta": [
+            40.97833,
+            29.0974
+          ]
+        },
+        {
+          "ad": "Altunizade",
+          "nokta": [
+            41.02392,
+            29.05227
+          ]
+        },
+        {
+          "ad": "15 Temmuz",
+          "nokta": [
+            41.03828,
+            29.042
+          ]
+        }
+      ],
+      "kopru": [
+        41.0456,
+        29.0342
+      ]
+    },
+    {
+      "ad": "TEM · FSM",
+      "nereden": [
+        40.88804,
+        29.2392
+      ],
+      "nereye": [
+        41.0923,
+        29.08171
+      ],
+      "kacin": [
+        [
+          [
+            40.935,
+            29.03
+          ],
+          [
+            40.99,
+            29.12
+          ]
+        ],
+        [
+          [
+            41.03,
+            29.125
+          ],
+          [
+            41.09,
+            29.26
+          ]
+        ]
+      ],
+      "not": "Pendik Kavsagi -> FSM Kavacik girisi (O-2 bati yonu, OSM way 657410177). Kacinilan: D-100 Kadikoy-Bostanci, Cekmekoy/Cavusbasi ara yollari. 1 Kasim olculdu.",
+      "duraklar": [
+        {
+          "ad": "Pendik",
+          "nokta": [
+            40.88804,
+            29.2392
+          ]
+        },
+        {
+          "ad": "Samandıra",
+          "nokta": [
+            40.98448,
+            29.20017
+          ]
+        },
+        {
+          "ad": "Ümraniye",
+          "nokta": [
+            41.0045,
+            29.1212
+          ]
+        },
+        {
+          "ad": "Kavacık",
+          "nokta": [
+            41.07905,
+            29.09742
+          ]
+        },
+        {
+          "ad": "FSM",
+          "nokta": [
+            41.0923,
+            29.08171
+          ]
+        }
+      ],
+      "kopru": [
+        41.0913,
+        29.0587
+      ]
+    },
+    {
+      "ad": "E-5 · FSM",
+      "nereden": [
+        40.88804,
+        29.2392
+      ],
+      "nereye": [
+        41.0923,
+        29.08171
+      ],
+      "kacin": [
+        [
+          [
+            40.975,
+            29.13
+          ],
+          [
+            41.04,
+            29.26
+          ]
+        ],
+        [
+          [
+            40.95,
+            29.0
+          ],
+          [
+            40.99,
+            29.085
+          ]
+        ],
+        [
+          [
+            41.04,
+            29.15
+          ],
+          [
+            41.25,
+            29.4
+          ]
+        ]
+      ],
+      "not": "D-100 -> Kozyatagi Baglanti Yolu -> O-2. Kacinilan: TEM dogusu, D-100 Kozyatagi batisi, Kuzey Marmara. 1 Kasim olculdu.",
+      "kopru": [
+        41.0913,
+        29.0587
+      ]
+    },
+    {
+      "ad": "O-7 · FSM",
+      "nereden": [
+        40.88804,
+        29.2392
+      ],
+      "nereye": [
+        41.0923,
+        29.08171
+      ],
+      "kacin": [
+        [
+          [
+            40.96,
+            29.08
+          ],
+          [
+            41.035,
+            29.2
+          ]
+        ],
+        [
+          [
+            40.89,
+            29.0
+          ],
+          [
+            40.97,
+            29.22
+          ]
+        ]
+      ],
+      "not": "Kurtkoy -> Kuzey Marmara -> Kuzey Cevre -> O-2. Kacinilan: TEM ve D-100. 1 Kasim olculdu.",
+      "kopru": [
+        41.0913,
+        29.0587
+      ]
+    },
+    {
+      "ad": "E-5 · Avrasya",
+      "nereden": [
+        40.88804,
+        29.2392
+      ],
+      "nereye": [
+        41.00319,
+        29.03925
+      ],
+      "kacin": [
+        [
+          [
+            40.983,
+            29.1
+          ],
+          [
+            41.04,
+            29.26
+          ]
+        ]
+      ],
+      "not": "D-100 -> Eski D-100 bati yonu, Koşuyolu Koprusu oncesi (tunel girisi). 1 Kasim olculdu.",
+      "kopru": [
+        41.005,
+        29.0226
+      ]
+    },
+    {
+      "ad": "O-7 · Yavuz Sultan Selim",
+      "nereden": [
+        40.88804,
+        29.2392
+      ],
+      "nereye": [
+        41.19694,
+        29.12874
+      ],
+      "not": "Kuzey Marmara bati yonu, YSS Anadolu girisi (OSM way 546613957). 1 Kasim olculdu.",
+      "kopru": [
+        41.2027,
+        29.1117
+      ]
+    }
+  ],
+  "_aciklama": [
+    "En fazla 6 guzergah. nereden / nereye / kopru: [enlem, boylam].",
+    "nereye: Bogaz'i GECMEDEN, koprunun/tunelin Anadolu girisinde, gidis yonu SERIDININ uzerinde bir nokta.",
+    "Hedef seritte oldugu icin rota baska bir kopruye kacamaz; karsi serit 13-35 m otede oldugundan",
+    "noktayi OpenStreetMap'te tek yonlu yol (oneway) cizgisinden alin, rastgele tiklamayin.",
+    "kopru (istege bagli): koprunun/tunelin kendisi. Kapanma (maraton, bakim) bu noktanin 60 m",
+    "yakinindaki 'yol kapali' olaylarindan anlasilir ve kartta 'Kapali' yazar.",
+    "kacin: rotanin GIRMEMESI istenen dikdortgenler, [[guney, bati], [kuzey, dogu]].",
+    "TomTom bunu YUMUSAK uyguluyor: yogun trafikte rota yasakli alandan yine gecebilir.",
+    "Belirli bir yolu ara noktayla zorlamayin: ara nokta serit yonune gore geri donus yaptirip",
+    "rotayi uzatiyor (olculdu). Diger yolu yasaklayan dikdortgen daha saglam.",
+    "duraklar (istege bagli): 'Duraklar' gorunumu icin kontrol noktalari, ilk ve son dahil, yol sirasiyla.",
+    "Rotadan 800 m'den uzak durak atilir. Yer adi olarak herkesin bildigi noktalari secin.",
+    "not: yalnizca sizin icin; servis okumuyor.",
+    "Kota: 6 guzergah x 5 dk = gunde en fazla 1.728 rota + 288 kapanma sorgusu (ucretsiz katman 2.500)."
+  ]
+}

@@ -1,0 +1,1325 @@
+/* ===========================================================================
+   Sade — macOS esinli webOS ana ekrani  (Layout B)
+   Sol: hava · Orta: saat · Sag: namaz · Alt: dock
+   1920x1080, eski Chromium (webOS 6.5).
+
+   Bu TV'de ogrenilenler:
+   - Zemin dogrudan <body> uzerinde olmali (ayri katman + z-index:-1 cizilmiyor)
+   - Flexbox `gap` YOK (Chromium 84'te geldi) -> margin. Grid gap calisir.
+   - overflow:hidden padding kutusunda kirpar -> kenar boslugu margin ile
+   - Dock'ta buyuyen oge icin overflow gorunur + z-index sarti
+   =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   OLCEK — tutarlilik icin. Denetimde 21 farkli yazi boyutu ve 13 farkli
+   kose yaricapi cikmisti (20/21/22/23... gibi gozle ayirt edilemeyen
+   farklar). Yeni deger eklerken bu listeden sec:
+     Yazi   : 22 · 25 · 30 · 36 · 50 · 62 · 72 · 148
+     Yaricap: 12 · 16 · 24 · 34 · 44 · 999
+   --------------------------------------------------------------------------- */
+:root {
+  --metin:       #16181c;
+  --soluk:       #5d646d;
+  --silik:       #8b929b;
+  --kart-ic:     #fbfbfd;
+  --cam:         rgba(255, 255, 255, .58);
+  --cam-kenar:   rgba(255, 255, 255, .7);
+  --dock-cam:    rgba(255, 255, 255, .46);
+  --dock-kenar:  rgba(255, 255, 255, .62);
+  --vurgu:       #2b6ff0;
+  --vurgu-zemin: rgba(43, 111, 240, .10);
+  --panel-zemin: rgba(250,251,253,.97);
+  --golge-yum:  0 1px 2px rgba(16,18,22,.04),
+                0 8px 22px rgba(16,18,22,.06),
+                0 22px 60px rgba(16,18,22,.07);
+  --gecis:      260ms cubic-bezier(.22, .68, .36, 1);
+
+  /* --- EV IZGARASI ---------------------------------------------------
+     Iki bolge (sol/sag), her biri 3 SUTUN x N SATIR. Ortadaki kolon
+     saatin; izgara oraya hic girmiyor.
+     Dikey butce olculdu: menu cubugu y=60'ta bitiyor, dock etiketi
+     y=742'de basliyor. Bolge bu ikisinin arasinda duruyor.
+     Satir sayisi tek yerden degisiyor ki 3'e karsi 4'u deneyebilelim. */
+  --izgara-satir: 3;
+  --izgara-ust:   112px;
+  --izgara-yuk:   541px;   /* 3 x 159 + 2 x 32 */
+  /* Araligi 20'den 32'ye cikardik. Sebep: 1:1 bakinca iki kart neredeyse
+     yapisik duruyordu — kartin KENDI ic boslugu 32 px, aralarindaki bosluk
+     ondan kucuk olunca "ayri iki kart" okunmuyor, tek blok gibi duruyor.
+     Artik aralik kartin ic boslugu kadar; keyfi bir sayi degil, sistemin
+     kendi olcusu. Satir yuksekligi buna gore 165 -> 159 oldu ama hava
+     karti 2 satir + aralik = 350 px, yani BOYU DEGISMEDI.
+     Ust bosluk da 98 -> 112: menu cubugu y=60'ta bitiyor, araya 52 px
+     giriyor (onceden 38). */
+  --izgara-ara:   32px;
+  --kart-ic-dikey: 32px;   /* kart ic bosluk — 4 satirda kisiliyor */
+  --kart-ic-ara:   24px;   /* kart icindeki bolumler arasi */
+}
+
+body.gece {
+  --metin:       #f2f4f7;
+  --soluk:       #a7adb6;
+  --silik:       #767d87;
+  --kart-ic:     #25282e;
+  --cam:         rgba(255, 255, 255, .07);
+  --cam-kenar:   rgba(255, 255, 255, .11);
+  --dock-cam:    rgba(255, 255, 255, .08);
+  --dock-kenar:  rgba(255, 255, 255, .12);
+  --vurgu:       #74abff;
+  --vurgu-zemin: rgba(116, 171, 255, .14);
+  --panel-zemin: rgba(42,45,52,.98);
+  --golge-yum:  0 1px 2px rgba(0,0,0,.2),
+                0 8px 22px rgba(0,0,0,.3),
+                0 22px 60px rgba(0,0,0,.34);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { width: 1920px; height: 1080px; }
+
+body {
+  width: 1920px; height: 1080px; overflow: hidden;
+  color: var(--metin);
+  font-family: "LG Smart UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #dfe3ea;
+  background-image:
+    radial-gradient(1500px 900px at 50% 8%,  rgba(255,255,255,.95) 0%, rgba(255,255,255,0) 58%),
+    radial-gradient(900px 700px at 86% 78%, rgba(206,214,228,.55) 0%, rgba(255,255,255,0) 62%),
+    linear-gradient(161deg, #f1f3f7 0%, #e5e9f0 44%, #d2d8e3 100%);
+}
+body.gece {
+  background-color: #0d0f12;
+  background-image:
+    radial-gradient(1500px 900px at 50% 8%,  rgba(255,255,255,.055) 0%, rgba(255,255,255,0) 58%),
+    radial-gradient(900px 700px at 86% 78%, rgba(90,110,150,.16) 0%, rgba(255,255,255,0) 62%),
+    linear-gradient(161deg, #191d23 0%, #12151a 48%, #090b0e 100%);
+}
+
+/* --- menu cubugu --------------------------------------------------------- */
+/* Yukseklik olcumle secildi: en uzun icerik 38px (durum dugmesi), yazi
+   25px. 74px'te cubugun %43'u bos dikey alandi ve kalin duruyordu.
+   60px -> oran 2.4x (macOS 1.6x'in TV mesafesine uyarlanmis hali). */
+.menubar {
+  position: absolute; top: 0; left: 0; right: 0; height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 34px;
+  background: var(--cam);
+  border-bottom: 1px solid var(--cam-kenar);
+}
+.sekmeler { display: flex; }
+.sekme + .sekme { margin-left: 6px; }
+.sekme {
+  border: 0; cursor: default; font: inherit;
+  font-size: 25px; font-weight: 500; color: var(--soluk);
+  background: transparent; padding: 6px 18px; border-radius: 12px;
+  transition: background var(--gecis), color var(--gecis);
+}
+/* Gorsel hiyerarsi: ODAK (kumanda imleci) her zaman en baskin oge olmali.
+   Onceden tersiydi — "etkin" sekmenin dolgulu beyaz hapi dock'taki odaktan
+   daha cok dikkat cekiyor, kullanici secimin menude basladigini saniyordu.
+     etkin = sadece koyu + yari kalin yazi ("bu sayfadasin")
+     odak  = dolu vurgu rengi (menubar dugmeleriyle ayni dil)             */
+.sekme.etkin { color: var(--metin); font-weight: 600; background: transparent; }
+.sekme.odak  { background: var(--vurgu); color: #fff; box-shadow: none; }
+body.gece .sekme.odak { color: #0d0f12; }
+
+.menubar-sag { display: flex; align-items: center; font-size: 25px; color: var(--soluk); }
+.menubar-sag > * + * { margin-left: 15px; }
+.mb-hava { display: flex; align-items: center; margin-right: 6px; }
+.mb-hava[hidden] { display: none; }
+.mb-ikon { width: 27px; height: 27px; margin-right: 8px; }
+
+/* macOS menu bar dili: tarih ve saat tek parca, sayilar sabit genislikte
+   ki saniyede bir genislik oynamasin. */
+.mb-zaman {
+  color: var(--metin); font-weight: 500;
+  font-variant-numeric: tabular-nums; letter-spacing: -.005em;
+  margin-left: 20px;
+}
+
+/* durum simgeleri */
+.mb-dugme {
+  width: 38px; height: 38px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; color: var(--soluk);
+  transition: background var(--gecis), color var(--gecis), transform var(--gecis);
+}
+.mb-dugme svg { width: 25px; height: 25px; display: block; }
+.mb-dugme.odak { background: var(--vurgu); color: #fff; transform: scale(1.08); }
+/* servis yanit vermiyorsa simge hic gosterilmesin — yaniltici olmasin */
+.mb-dugme[hidden] { display: none; }
+
+/* durum varyantlari */
+.mb-dugme .sessiz { display: none; }
+#mb-ses.kisik .dalga path:last-child { opacity: .25; }
+#mb-ses.sessiz-mod .dalga { display: none; }
+#mb-ses.sessiz-mod .sessiz { display: block; }
+#mb-ag.kopuk .y3, #mb-ag.kopuk .y2 { opacity: .22; }
+#mb-ag.kablolu .y3, #mb-ag.kablolu .y2, #mb-ag.kablolu .y1 { opacity: 1; }
+#mb-bt.kapali { opacity: .35; }
+
+.gorunum { display: none; }
+.gorunum.etkin { display: block; }
+
+/* --- menu cubugu acilir paneli ------------------------------------------- */
+/* Konumu JS veriyor: odakli simgenin tam altina, sag kenardan tasmayacak
+   sekilde. Menu cubugunun uzerinde durmali, bu yuzden z-index yuksek. */
+.mb-panel {
+  position: absolute; top: 72px; z-index: 40;
+  /* SABIT genislik. Degisken genislik paneller arasi gecerken kutuyu
+     ziplatiyordu: Bluetooth 620, Parlaklik 480 — ayni menu cubugundan
+     acilan iki kutu farkli boyda. Apple'in Denetim Merkezi modulleri de
+     tek genisliktedir. */
+  width: 580px;
+  padding: 22px 26px;
+  border-radius: 24px;
+  /* Panel ALTINDAKI karti ortmek zorunda. Cam efekti icin backdrop-filter
+     kullaniyorduk ama bu motorda ise yaramiyor ve panel seffaf kalip
+     namaz kartiyla ic ice geciyordu. Opak zemin + blur (varsa bonus). */
+  background: var(--panel-zemin);
+  border: 1px solid var(--cam-kenar);
+  box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.45);
+  backdrop-filter: blur(22px);
+}
+body.gece .mb-panel { box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.06); }
+.mb-panel[hidden] { display: none; }
+.mb-panel-baslik {
+  font-size: 25px; font-weight: 600; margin-bottom: 16px;
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.mb-baslik-deger { font-weight: 500; color: var(--soluk);
+                   font-variant-numeric: tabular-nums; }
+
+/* Denetim Merkezi girisleri — KENDI sinifi.
+   Onceden .ses-dugme'yi devralip width:auto ile ezmeye calisiyordu; ama
+   .ses-dugme CSS'te daha SONRA geldigi icin width:54px kazaniyordu ve
+   metinler iki satira kiriliyordu. */
+.dm-giris {
+  display: flex; align-items: center; justify-content: flex-start;
+  width: 100%; height: 58px; padding: 0 20px;
+  border-radius: 16px; font-size: 25px; font-weight: 500;
+  color: var(--metin); background: rgba(128,135,145,.14);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: background var(--gecis), color var(--gecis);
+}
+.dm-giris + .dm-giris { margin-top: 10px; }
+.dm-giris.odak { background: var(--vurgu); color: #fff; }
+body.gece .dm-giris.odak { color: #0d0f12; }
+
+/* Denetim Merkezi karolari — Apple dili: ikon ustte, etiket altta.
+   Dar metin satirindan farki: uzaktan simgeden anlasiliyor. */
+.dm-karolar { display: flex; margin-bottom: 4px; }
+.dm-karo {
+  flex: 1 1 0; text-align: center; cursor: pointer;
+  padding: 16px 10px 14px; border-radius: 16px;
+  background: rgba(128,135,145,.14);
+  transition: transform var(--gecis), background var(--gecis);
+}
+.dm-karo + .dm-karo { margin-left: 12px; }
+.dm-ikon { width: 34px; height: 34px; color: var(--metin); display: block; margin: 0 auto; }
+.dm-ad { font-size: 22px; color: var(--soluk); margin-top: 10px; line-height: 1.25; }
+/* Ayni panelin icinde iki farkli odak dili vardi: karo komple maviye
+   boyaniyor, tema karosu ise halka aliyordu. Tek dil: imlec HALKA. */
+.dm-karo.odak {
+  background: var(--vurgu-zemin); transform: scale(1.04);
+  box-shadow: inset 0 0 0 3px var(--vurgu);
+}
+.dm-karo.odak .dm-ikon, .dm-karo.odak .dm-ad { color: var(--vurgu); }
+/* Guc karosu ilk basista: ikinci basis gerekiyor, kirmizi uyari */
+.dm-karo.onay { background: rgba(229,72,77,.18); }
+.dm-karo.onay .dm-ikon, .dm-karo.onay .dm-ad { color: #e5484d; }
+.dm-karo.onay.odak { box-shadow: inset 0 0 0 3px #e5484d; }
+
+/* Gorunum karolari — macOS Sistem Ayarlari'ndaki onizleme kalibi.
+   Her karo temanin KENDISINI minyatur gosteriyor: ust serit (menu cubugu)
+   + bir kart. Otomatik, ikisinin yarisi. Secili olanin halkasi var.
+   Metin okumak gerekmiyor, bakmak yetiyor. */
+.tema-baslik { font-size: 22px; color: var(--soluk); margin-top: 14px; }
+.tema-karolar { display: flex; margin-top: 10px; }
+.tema-oge { flex: 1 1 0; text-align: center; cursor: pointer; }
+.tema-oge + .tema-oge { margin-left: 12px; }
+
+.tema-onizleme {
+  height: 66px; border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--cam-kenar);
+  position: relative;
+  transition: transform var(--gecis), box-shadow var(--gecis);
+}
+.tema-onizleme.gunduz { background: #eef0f3; }
+.tema-onizleme.gece   { background: #1b1e23; }
+/* Otomatik: sol yari acik, sag yari koyu */
+.tema-onizleme.oto {
+  background: linear-gradient(90deg, #eef0f3 0%, #eef0f3 50%, #1b1e23 50%, #1b1e23 100%);
+}
+.to-cubuk {
+  position: absolute; top: 7px; left: 9px; right: 9px; height: 8px;
+  border-radius: 999px; background: rgba(128,135,145,.42);
+}
+.to-kart {
+  position: absolute; left: 9px; right: 9px; top: 23px; bottom: 9px;
+  border-radius: 8px;
+}
+.tema-onizleme.gunduz .to-kart { background: #fff; }
+.tema-onizleme.gece   .to-kart { background: #2b2f36; }
+.tema-onizleme.oto    .to-kart {
+  background: linear-gradient(90deg, #fff 0%, #fff 50%, #2b2f36 50%, #2b2f36 100%);
+}
+
+.tema-ad { font-size: 22px; color: var(--soluk); margin-top: 8px; }
+.tema-oge.secili .tema-onizleme { box-shadow: 0 0 0 3px var(--vurgu); }
+.tema-oge.secili .tema-ad { color: var(--vurgu); font-weight: 600; }
+/* Odak ve secim ayri okunmali: secim halka, odak buyume + dis halka */
+.tema-oge.odak .tema-onizleme {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 3px var(--vurgu), 0 0 0 7px var(--vurgu-zemin);
+}
+
+/* Yuvarlak toggle: durumu RENKLE anlatiyor. Sessizken dolu vurgu zemini,
+   acikken notr. Metin etiketi yerine simge — durum aninda okunsun. */
+/* Hap 64 px oldu; 48 px'lik yuvarlak onun yaninda cilizdi. */
+.ses-dugme.yuvarlak-toggle { width: 56px; height: 56px; }
+.ses-dugme.yuvarlak-toggle svg { width: 28px; height: 28px; }
+/* DURUM ve ODAK ayri okunmali: ikisi de dolu vurgu olunca sessiz mi yoksa
+   imlec mi orada anlasilmiyordu. Durum = dolu zemin, odak = halka + buyume. */
+.ses-dugme.yuvarlak-toggle.etkin { background: var(--vurgu); color: #fff; }
+body.gece .ses-dugme.yuvarlak-toggle.etkin { color: #0d0f12; }
+.ses-dugme.yuvarlak-toggle.odak {
+  background: var(--vurgu-zemin); color: var(--vurgu);
+  box-shadow: 0 0 0 3px var(--panel-zemin), 0 0 0 6px var(--vurgu);
+  transform: scale(1.06);
+}
+.ses-dugme.yuvarlak-toggle.etkin.odak {
+  background: var(--vurgu); color: #fff;
+  box-shadow: 0 0 0 3px var(--panel-zemin), 0 0 0 6px var(--vurgu);
+}
+body.gece .ses-dugme.yuvarlak-toggle.etkin.odak { color: #0d0f12; }
+.mb-satir .ses-dugme { margin-left: auto; }
+
+/* Panel satirlari odaklanabilir: etiket + deger, ENTER degistirir.
+   Segment seritlerinden vazgecildi — ikili durum icin agir duruyordu. */
+.mb-satir.odaklanir { padding: 10px 14px; border-radius: 16px; cursor: pointer; }
+/* ODAK = HALKA, DURUM = DOLU. Onceden odakli satir komple vurgu rengine
+   boyaniyordu; ayni panelde yuvarlak toggle "dolu = acik" diyordu, satir
+   ise "dolu = imlec burada". Ayni gorsel iki farkli sey anlatinca hicbiri
+   okunmuyor. Artik tek dil: imlec halka, acik/secili durum dolu. */
+.mb-satir.odak {
+  background: var(--vurgu-zemin);
+  box-shadow: inset 0 0 0 3px var(--vurgu);
+}
+.mb-satir.odak b { color: var(--vurgu); }
+
+/* Ag paneli: alti satirlik anahtar/deger tablosu yerine KAHRAMAN satir
+   (hangi agdayiz) + tek satirlik soluk detay. Tablo teshis ekraniydi,
+   denetim merkezi degil. */
+.ag-bas { display: flex; align-items: center; margin-top: 4px; }
+.ag-bas svg { width: 40px; height: 40px; flex: 0 0 auto; margin-right: 16px;
+              color: var(--vurgu); display: block; }
+.ag-ad   { font-size: 30px; font-weight: 600; line-height: 1.2; }
+.ag-alt  { font-size: 20px; color: var(--soluk); margin-top: 2px; }
+.ag-detay { margin-top: 12px; font-size: 19px; line-height: 1.45;
+            color: var(--silik); white-space: nowrap; }
+.ag-detay + .ag-detay { margin-top: 2px; }
+.ag-detay b { font-weight: 600; color: var(--soluk); }
+
+.panel-hata { margin-top: 12px; font-size: 22px; color: #c0392b; }
+body.gece .panel-hata { color: #ff8a80; }
+
+.mb-satir { display: flex; align-items: center; justify-content: space-between;
+            font-size: 22px; color: var(--soluk); margin-top: 8px; }
+.mb-satir b { font-weight: 600; color: var(--metin); }
+
+/* --- KAYDIRAK: Apple Denetim Merkezi hapi -------------------------------
+   Eski tasarim [-] [ince cubuk] [+] idi: uc odak hedefi, 10 px'lik cizgi,
+   Android TV gorunumu. Apple'da tek bir KALIN hap var, simge icinde,
+   dolgu degeri gosteriyor. Kumandada da dogrusu bu: hap odaklanir,
+   SOL/SAG degeri degistirir — LG'nin kendi ses cubugu da boyle calisir.
+   Odak halkasi disarida ve araliklı: hap zaten vurgu rengiyle dolu
+   oldugu icin ice cizilen halka kayboluyordu. */
+.kaydirak {
+  position: relative; height: 64px; border-radius: 999px; margin-top: 14px;
+  background: rgba(128,135,145,.20); overflow: hidden;
+  transition: box-shadow var(--gecis), transform var(--gecis);
+}
+.kaydirak-dolu {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: var(--vurgu); border-radius: 999px;
+  transition: width var(--gecis);
+}
+.kaydirak-ikon {
+  position: absolute; left: 20px; top: 50%; margin-top: -17px;
+  width: 34px; height: 34px; display: block;
+}
+/* Odak halkasi: once 3 px ic halka denendi, hap zaten vurgu rengiyle dolu
+   oldugu icin kayboluyordu. Simdi disarida, arada panel zemini rengiyle
+   bosluk var — 3 metre mesafeden secilmesi gereken tek sey bu. */
+.kaydirak.odak {
+  overflow: visible;
+  box-shadow: 0 0 0 4px var(--panel-zemin), 0 0 0 8px var(--vurgu);
+}
+/* odak halkasi disa tasinca dolgunun kosesi hapin disina sarkmasin */
+.kaydirak.odak .kaydirak-dolu { box-shadow: none; }
+.kaydirak.sonuk { opacity: .38; }
+
+/* Panel ici aciklama satiri — hata degil, DURUM. Hata kirmizi, bu soluk. */
+.mb-not { margin-top: 10px; font-size: 20px; line-height: 1.35;
+          color: var(--soluk); }
+.ses-dugme {
+  width: 54px; height: 54px; flex: 0 0 auto; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; font-weight: 500; line-height: 1;
+  color: var(--metin); background: rgba(128,135,145,.14);
+  transition: background var(--gecis), color var(--gecis), transform var(--gecis);
+}
+.ses-dugme svg { width: 26px; height: 26px; display: block; }
+.ses-dugme.odak { background: var(--vurgu-zemin); color: var(--vurgu);
+                  transform: scale(1.06); }
+
+/* --- ortak kart dili ----------------------------------------------------- */
+/* --- ev izgarasi ---------------------------------------------------------
+   Onceden hava/namaz/klima tek tek ABSOLUTE konumlanıyordu ve klima
+   ikisinin ortasinda, hicbir seyle hizalanmadan asili duruyordu. Artik
+   iki bolge var, icleri gercek bir izgara. Widget boyutu data-gen /
+   data-sat ile veriliyor, yani yeni bir widget eklemek bir satir HTML.
+   CSS Grid Chromium 79'da calisiyor (grid gap destekli; flex gap DEGIL —
+   o yuzden baska yerlerde hala margin kullaniyoruz). */
+.bolge {
+  position: absolute; top: var(--izgara-ust);
+  width: 604px; height: var(--izgara-yuk);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(var(--izgara-satir), 1fr);
+  gap: var(--izgara-ara);
+  align-content: start;
+}
+.bolge.sol { left: 48px; }
+.bolge.sag { right: 48px; }
+/* Orta: yan bolgelerin arasinda (652+32 .. 1268-32 = 552 px), UCUNCU satir
+   hizasinda; tek satir. Ustu saatin, ferah kaliyor (tarih ile arasinda 92 px). */
+.bolge.orta { left: 684px; width: 552px;
+  top: calc(var(--izgara-ust) + 2 * ((var(--izgara-yuk) - 2 * var(--izgara-ara)) / 3 + var(--izgara-ara)));
+  height: calc((var(--izgara-yuk) - 2 * var(--izgara-ara)) / 3);
+  grid-template-rows: 1fr; }
+
+/* Varsayilan 3x1; her widget kendi olcusunu soyluyor. Gizli widget
+   izgaradan tamamen cikiyor, altindakiler yukari kayiyor — delik kalmaz. */
+.widget { grid-column: span 3; grid-row: span 1; min-width: 0; min-height: 0; }
+.widget[data-gen="1"] { grid-column: span 1; }
+.widget[data-gen="2"] { grid-column: span 2; }
+.widget[data-gen="3"] { grid-column: span 3; }
+.widget[data-sat="1"] { grid-row: span 1; }
+.widget[data-sat="2"] { grid-row: span 2; }
+.widget[data-sat="3"] { grid-row: span 3; }
+.widget[data-sat="4"] { grid-row: span 4; }
+
+.kart {
+  padding: var(--kart-ic-dikey) 36px;
+  border-radius: 44px;
+  background: var(--cam);
+  border: 1px solid var(--cam-kenar);
+  box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.45);
+}
+body.gece .kart { box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.06); }
+.kart[hidden] { display: none; }
+
+/* --- sol: hava ----------------------------------------------------------- */
+.hava-ust { display: flex; align-items: center; }
+.hava-ikon { width: 78px; height: 78px; flex: 0 0 auto; margin-right: 20px; }
+.hava-durum { font-size: 30px; font-weight: 500; }
+.hava-sehir { margin-top: 3px; font-size: 25px; color: var(--silik); }
+.hava-sag { margin-left: auto; text-align: right; }
+.hava-derece { font-size: 72px; font-weight: 300; line-height: 1;
+               letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.hava-alt { margin-top: 8px; font-size: 25px; color: var(--silik); }
+.hava-alt span + span { margin-left: 14px; }
+
+.saatlik {
+  display: flex; justify-content: space-between;
+  margin-top: var(--kart-ic-ara); padding-top: 22px;
+  border-top: 1px solid var(--cam-kenar);
+}
+.saatlik .sa { text-align: center; flex: 1 1 0; }
+.saatlik .sa-saat   { font-size: 25px; color: var(--silik); font-variant-numeric: tabular-nums; }
+.saatlik .sa-ikon   { width: 42px; height: 42px; margin: 10px auto 8px; display: block; }
+.saatlik .sa-derece { font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* --- orta: saat ---------------------------------------------------------- */
+.merkez {
+  position: absolute; top: 222px; left: 690px; right: 690px;
+  text-align: center;
+}
+.buyuk-saat {
+  font-size: 148px; font-weight: 200;
+  letter-spacing: -.055em; line-height: .86;
+  font-variant-numeric: tabular-nums;
+}
+.tarih { margin-top: 18px; font-size: 30px; color: var(--soluk); }
+
+/* --- sag: namaz vakitleri ------------------------------------------------ */
+.ezan-ust {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.ezan-yer   { font-size: 30px; font-weight: 600; }
+.ezan-hicri { font-size: 25px; color: var(--silik); }
+
+.vakitler { list-style: none; display: flex; }
+.vakitler li {
+  flex: 1 1 0; text-align: center;
+  padding: 12px 1px 10px;
+  border-radius: 16px;
+  transition: background var(--gecis);
+}
+.vakitler .v-ikon { width: 40px; height: 40px; display: block; margin: 0 auto 9px; }
+.vakitler .v-saat {
+  display: block; font-size: 30px; font-weight: 600;
+  letter-spacing: -.015em; font-variant-numeric: tabular-nums;
+}
+.vakitler .v-ad { display: block; margin-top: 4px; font-size: 22px; color: var(--silik); }
+.vakitler li.gecti { opacity: .42; }
+.vakitler li.sirada { background: var(--vurgu-zemin); }
+.vakitler li.sirada .v-saat,
+.vakitler li.sirada .v-ad { color: var(--vurgu); }
+
+.ezan-geri {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-top: 18px; padding-top: 16px;
+  border-top: 1px solid var(--cam-kenar);
+}
+.geri-etiket { font-size: 30px; color: var(--soluk); }
+.geri-sayim {
+  font-size: 50px; font-weight: 600; letter-spacing: -.025em;
+  font-variant-numeric: tabular-nums; color: var(--vurgu);
+}
+
+.kart-hata { position: absolute;
+             top: calc(var(--izgara-ust) + var(--izgara-yuk) + 14px); left: 48px;
+             font-size: 22px; color: var(--silik); }
+.kart-hata[hidden] { display: none; }
+
+/* --- orta alt: klima widget ---------------------------------------------- */
+/* Kartlar (y~455'te bitiyor) ile dock etiketi (y~765) arasindaki bos bant.
+   Yan kartlarla ayni cam dilini kullanir ama yatay ve daha alcak dursun diye
+   genisligi onlardan fazla, yuksekligi az. */
+.klima-widget, .sistem-widget {
+  /* Artik mutlak konumlu DEGIL — sol bolgenin 3x1 izgara ogesi.
+     Eskiden iki kartin ortasinda, hicbir kenara hizalanmadan duruyordu;
+     esim de hakli olarak "ortalikta" demisti. */
+  display: flex; align-items: center;
+  padding: 22px 28px;
+  border-radius: 34px;
+  background: var(--cam);
+  border: 1px solid var(--cam-kenar);
+  box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.45);
+}
+body.gece .klima-widget {
+  box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.06);
+}
+/* display:flex yazdigimiz icin tarayicinin kendi [hidden] kurali eziliyor;
+   her widget kendi gizleme kuralini acikca soylemeli. */
+.klima-widget[hidden], .sistem-widget[hidden] { display: none; }
+.widget-depo { display: none; }
+
+.kw-ikon { width: 48px; height: 48px; flex: 0 0 auto; margin-right: 14px; }
+.kw-yazi { flex: 1 1 auto; min-width: 0; }
+.kw-ad   { font-size: 30px; font-weight: 600; letter-spacing: -.01em; }
+.kw-alt  { margin-top: 3px; font-size: 25px; color: var(--silik);
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.kw-kontrol { flex: 0 0 auto; display: flex; align-items: center; }
+.kw-kontrol > * + * { margin-left: 11px; }
+
+.kw-dugme {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; font-weight: 500; line-height: 1;
+  color: var(--metin); background: rgba(128,135,145,.14);
+  transition: background var(--gecis), transform var(--gecis), color var(--gecis);
+}
+.kw-hedef { min-width: 84px; text-align: center; }
+.kw-hedef-deger { font-size: 50px; font-weight: 300; letter-spacing: -.04em;
+                  font-variant-numeric: tabular-nums; }
+.kw-derece { font-size: 36px; font-weight: 300; color: var(--silik); }
+
+.kw-guc {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--silik); background: rgba(128,135,145,.14);
+  transition: background var(--gecis), transform var(--gecis), color var(--gecis);
+}
+.kw-guc svg { width: 32px; height: 32px; display: block; }
+.kw-guc.acik { color: #fff; background: var(--vurgu); }
+
+/* ODAK = HALKA, DURUM = DOLU — panellerdeki dilin aynisi. Onceden odakli
+   dugme de, "acik" guc dugmesi de dolu maviydi; hangisinin ne demek
+   oldugu anlasilmiyordu. */
+.kw-dugme.odak, .kw-guc.odak, .sw-dugme.odak {
+  background: var(--vurgu-zemin); color: var(--vurgu);
+  box-shadow: 0 0 0 3px var(--cam), 0 0 0 6px var(--vurgu);
+  transform: scale(1.06);
+}
+.kw-guc.acik.odak {
+  background: var(--vurgu); color: #fff;
+  box-shadow: 0 0 0 3px var(--cam), 0 0 0 6px var(--vurgu);
+}
+/* --- sistem widget'i --- */
+/* RAM cubugu: panellerdeki hapin kucugu. Dolu kisim KULLANILAN bellek. */
+/* Islem sonucu: kisa sure vurgu renginde, sonra normale doner. */
+.kw-alt.sw-sonuc { color: var(--vurgu); font-weight: 500; }
+/* "RAM" etiketi sarttı: cubugun neyi gosterdigi hicbir yerde yazmiyordu.
+   Yuzde de geri geldi — GB mutlak buyuklugu, yuzde doluluk hissini
+   veriyor; ikisi birlikte okunuyor. */
+.sw-ram-satir { display: flex; align-items: center; margin-top: 10px; }
+.sw-ram-etiket { flex: 0 0 auto; margin-right: 10px; font-size: 20px;
+                 font-weight: 600; color: var(--soluk); letter-spacing: .02em; }
+.sw-ram { flex: 1 1 auto; min-width: 0; height: 10px; border-radius: 999px;
+          background: rgba(128,135,145,.22); overflow: hidden; }
+.sw-ram-yuzde { flex: 0 0 auto; margin-left: 12px; font-size: 22px;
+                color: var(--silik); font-variant-numeric: tabular-nums; }
+.sw-ram-dolu { height: 100%; width: 0; border-radius: 999px;
+               background: var(--vurgu); transition: width var(--gecis); }
+/* %85 ustu: bellek gercekten darda, rengi uyariya cevir */
+.sw-ram-dolu.dar { background: #d98324; }
+body.gece .sw-ram-dolu.dar { background: #e0a04a; }
+
+/* Simsek dugmesi: klimanin guc dugmesiyle ayni kaliptaki yuvarlak.
+   Once "Bosalt" yazan bir hap konmustu; kelime neyi bosalttigini
+   soylemiyordu ve yanlis cagrisim yapiyordu. */
+.sw-dugme {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--metin); background: rgba(128,135,145,.14);
+  transition: background var(--gecis), transform var(--gecis), color var(--gecis);
+}
+.sw-dugme svg { width: 30px; height: 30px; display: block; }
+/* Calisirken: dolu vurgu + hafif nabiz. "Bastim, bir sey oluyor" demesi
+   lazim, yoksa 5 saniye boyunca tepkisiz sanilir. */
+.sw-dugme.mesgul { background: var(--vurgu); color: #fff; animation: nabiz 1.1s ease-in-out infinite; }
+body.gece .sw-dugme.mesgul { color: #0d0f12; }
+@keyframes nabiz { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .sw-dugme.mesgul { animation: none; } }
+
+/* --- sistem widget'i: genisletilmis hal ---------------------------------
+   3x1 iken satir duzeni (ikon | yazi | dugmeler). Genisleyince 3x3 oluyor
+   ve dikey akisa geciyor: ust satir aynen kaliyor, altina uygulama
+   listesi ve olcumler giriyor. */
+/* Sistem widget'i klima ile ayni cam kutuyu kullaniyor ama ic duzeni
+   farkli: daralmisken tek satir (dikeyde ortali), genisleyince ust satir
+   + altinda ayrinti. O yuzden kendisi block, satir isini .sw-ust yapiyor. */
+/* Genisleyince sistem widget'i sag bolgenin TAMAMINI aliyor (3x3).
+   Namaz karti o sirada cekiliyor — bolgede toplam 3 satir var, namaz 2
+   tanesini tutuyor; ikisi birden sigmiyordu ve kart taşiyordu. CSS ile
+   gizliyoruz, namaz kartinin kendi [hidden] mantigina hic karismadan. */
+.bolge.sistem-acik > .widget:not(.sistem-widget) { display: none; }
+
+.sistem-widget { display: block; }
+.sw-ust { display: flex; align-items: center; height: 100%; }
+.sistem-widget.genis { overflow: hidden; }
+.sistem-widget.genis .sw-ust { height: auto; }
+.sw-ayrinti { margin-top: 18px; padding-top: 16px;
+              border-top: 1px solid var(--cam-kenar); }
+.sw-ayrinti[hidden] { display: none; }
+
+.sw-satir {
+  display: flex; align-items: center;
+  padding: 9px 12px; border-radius: 14px;
+  font-size: 23px; margin-top: 4px;
+}
+.sw-satir .sw-ad { flex: 1 1 auto; min-width: 0;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sw-satir .sw-mb { flex: 0 0 auto; width: 88px; margin-left: 14px;
+                   text-align: right; color: var(--soluk);
+                   font-variant-numeric: tabular-nums; }
+/* "on yuklu": bu uygulamayi kullanici acmadi, LG onyukledi. */
+.sw-rozet { flex: 0 0 auto; margin-left: 10px; font-size: 17px;
+            color: var(--silik); border: 1px solid var(--cam-kenar);
+            padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+/* Bellek cubugu — en buyuk uygulamaya gore oranli. Rakamlari
+   karsilastirmadan hangisinin agir oldugunu gosteriyor. */
+.sw-cubuk { flex: 0 0 auto; width: 120px; height: 8px; margin-left: 14px;
+            border-radius: 999px; background: rgba(128,135,145,.20);
+            overflow: hidden; }
+.sw-cubuk > div { height: 100%; border-radius: 999px;
+                  background: var(--vurgu); opacity: .75; }
+.sw-satir.odak .sw-cubuk > div { opacity: 1; }
+/* Korunan satirlar soluk ve odaklanilamaz — basilacak bir sey yok. */
+.sw-satir.korumali { opacity: .5; }
+.sw-satir.odak { background: var(--vurgu-zemin);
+                 box-shadow: inset 0 0 0 3px var(--vurgu); }
+.sw-satir.odak .sw-ad { color: var(--vurgu); }
+.sw-olcum { margin-top: 14px; font-size: 19px; color: var(--silik);
+            font-variant-numeric: tabular-nums; }
+
+/* klima kapaliyken hedef/dugmeler soluk — ama yine de odaklanilabilir */
+.klima-widget.pasif .kw-hedef,
+.klima-widget.pasif .kw-dugme { opacity: .45; }
+
+/* --- alt: dock ----------------------------------------------------------- */
+.dock-sarmal {
+  position: absolute; left: 0; right: 0; bottom: 72px;
+  text-align: center; overflow: visible;
+  /* Etiket artik akistan cikti (mutlak konumlu); dock'un yeri kaymasin
+     diye ustte ayni kadar yer ayiriyoruz: 46 yukseklik + 30 bosluk. */
+  padding-top: 76px;
+}
+/* Uygulama adi ortada degil, odaktaki simgenin tam ustunde durur ve
+   odak kaydikca onunla birlikte kayar (macOS dock'u gibi).
+   Konumu app.js odakCiz() icinde transform ile veriyor; `left` yerine
+   transform animasyonu kullaniyoruz, TV'nin GPU'sunda daha akici.
+   transform-origin yatayda merkez oldugu icin simgenin buyumesi
+   merkez noktasini kaydirmiyor, etiket hep tam ortada kaliyor. */
+.secili-ad {
+  position: absolute; top: 0; left: 0;
+  height: 46px; line-height: 46px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: transform var(--gecis), opacity var(--gecis);
+  font-size: 30px; font-weight: 500; color: var(--soluk);
+  letter-spacing: -.008em;
+}
+.secili-ad.gorunur { opacity: 1; }
+.dock {
+  display: inline-block;
+  max-width: 1820px; overflow: visible;
+  padding: 20px 24px;
+  border-radius: 44px;
+  background: var(--dock-cam);
+  border: 1px solid var(--dock-kenar);
+  box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.5);
+}
+body.gece .dock { box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.07); }
+
+.dock-ic { display: flex; align-items: flex-end; }
+.dock-ic .kart-dock + .kart-dock { margin-left: 20px; }
+
+.kart-dock {
+  position: relative; z-index: 1;
+  flex: 0 0 auto;
+  width: 148px; height: 148px;
+  border-radius: 34px; overflow: hidden;
+  background: transparent;
+  box-shadow: 0 5px 14px rgba(16,18,22,.09);
+  transform-origin: 50% 100%;
+  transition: transform var(--gecis), box-shadow var(--gecis);
+  will-change: transform;
+}
+.dock-ic .kart-dock.odak { z-index: 3; }
+.kart-dock img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kart-dock .harf {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--kart-ic);
+  font-size: 50px; font-weight: 700; color: var(--metin);
+}
+.kart-dock.odak {
+  box-shadow: 0 10px 24px rgba(16,18,22,.13), 0 26px 56px rgba(16,18,22,.14);
+}
+body.gece .kart-dock.odak {
+  box-shadow: 0 10px 24px rgba(0,0,0,.42), 0 26px 56px rgba(0,0,0,.5);
+}
+
+/* --- tum uygulamalar ----------------------------------------------------- */
+.bolum-baslik {
+  position: absolute; top: 136px; left: 0; right: 0;
+  text-align: center; font-size: 50px; font-weight: 600; letter-spacing: -.02em;
+}
+.izgara {
+  position: absolute; top: 262px; left: 150px; right: 150px;
+  display: grid; grid-template-columns: repeat(6, 190px);
+  gap: 38px; justify-content: space-between;
+}
+.izgara .kart-dock {
+  width: 190px; height: 190px; border-radius: 34px;
+  background: var(--kart-ic); box-shadow: var(--golge-yum);
+  transform-origin: 50% 50%;
+}
+.izgara .kart-dock.odak { transform: scale(1.07); }
+
+/* --- AYARLAR ------------------------------------------------------------- */
+.ayar-aciklama {
+  position: absolute; top: 210px; left: 0; right: 0;
+  text-align: center; font-size: 25px; color: var(--silik);
+}
+.ayarlar-liste {
+  position: absolute; top: 274px; left: 50%; width: 1100px; margin-left: -550px;
+}
+/* Kart sabit yukseklikte ve tasan kismi kirpiyor; satirlar icinde kayiyor.
+   Boylece kartin yuvarlak kosesi ve zemini hep tam gorunuyor. */
+/* Yukseklik TAM satir katina ayarli (8 x 77 + 20 dolgu) — yoksa ustte
+   yarim satir kaliyor ve liste kesik gorunuyor. */
+.ayar-kart { height: 636px; overflow: hidden; }
+.ayar-ic { transition: transform 180ms cubic-bezier(.22,.68,.36,1); }
+.ayar-kart {
+  background: var(--cam);
+  border: 1px solid var(--cam-kenar);
+  border-radius: 34px;
+  box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.45);
+  padding: 10px 26px;
+}
+body.gece .ayar-kart { box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.06); }
+
+.ayar-satir {
+  display: flex; align-items: center;
+  padding: 11px 0;
+  border-top: 1px solid var(--cam-kenar);
+}
+.ayar-satir:first-child { border-top: 0; }
+.ayar-ikon {
+  width: 54px; height: 54px; flex: 0 0 auto; margin-right: 18px;
+  border-radius: 12px; overflow: hidden; background: var(--kart-ic);
+}
+.ayar-ikon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ayar-ad   { flex: 1 1 auto; font-size: 25px; min-width: 0;
+             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* dock disindaki uygulamalar soluk — hangisinin dockta oldugu bir bakista */
+.ayar-satir.disarda .ayar-ad,
+.ayar-satir.disarda .ayar-ikon { opacity: .45; }
+.ayar-yer  { flex: 0 0 auto; width: 54px; text-align: center;
+             font-size: 22px; color: var(--silik);
+             font-variant-numeric: tabular-nums; }
+
+.ayar-dugmeler { flex: 0 0 auto; display: flex; align-items: center; }
+.ayar-dugmeler > * + * { margin-left: 10px; }
+.ayar-dugme {
+  min-width: 52px; height: 52px; padding: 0 14px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 25px; font-weight: 500; line-height: 1;
+  color: var(--metin); background: rgba(128,135,145,.14);
+  transition: background var(--gecis), color var(--gecis), transform var(--gecis);
+}
+.ayar-dugme svg { width: 24px; height: 24px; display: block; }
+.ayar-dugme.odak { background: var(--vurgu); color: #fff; transform: scale(1.08); }
+/* yapilamayacak hareket: gorunur ama soluk, odaklanmaya devam ediyor */
+.ayar-dugme.olmaz { opacity: .3; }
+.ayar-dugme.acik  { background: var(--vurgu); color: #fff; }
+.ayar-dugme.acik.odak { box-shadow: inset 0 0 0 3px #fff; }
+
+/* --- EV: cihaz kontrolleri ------------------------------------------------ */
+.cihaz-durum {
+  position: absolute; top: 222px; left: 0; right: 0;
+  text-align: center; font-size: 25px; color: var(--silik);
+}
+.cihaz-durum[hidden] { display: none; }
+
+.cihazlar {
+  position: absolute; top: 276px; left: 120px; right: 120px;
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 34px;
+  /* Kartlar icerigi kadar yuksek olsun. Varsayilan `stretch` yuzunden az
+     icerikli kart (camasir makinesi) klimanin boyuna uzayip icinde kocaman
+     bir boslukla duruyordu. */
+  align-items: start;
+}
+/* Tek cihaz varken 2 sutunlu izgarada yarim genislikte kalip ortada
+   boslugu birakiyordu; tek kart ortalanmis ve dar olsun. */
+.cihazlar.tekli { grid-template-columns: minmax(0, 760px); justify-content: center; }
+
+.cihaz {
+  background: var(--cam);
+  border: 1px solid var(--cam-kenar);
+  border-radius: 44px;
+  box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.45);
+  padding: 30px 34px;
+}
+body.gece .cihaz { box-shadow: var(--golge-yum), inset 0 1px 0 rgba(255,255,255,.06); }
+
+.cihaz-ust { display: flex; align-items: center; margin-bottom: 20px; }
+.cihaz-ikon { width: 52px; height: 52px; margin-right: 16px; }
+.cihaz-ad   { font-size: 30px; font-weight: 600; }
+.cihaz-alt  { font-size: 22px; color: var(--silik); margin-top: 2px; }
+/* Guc dugmesi: yuvarlak simge dugmesi — durum YAZIDAN degil RENKTEN
+   okunuyor. Acik = dolu vurgu rengi, kapali = notr gri. Kirmizi
+   kullanmadik; TV'de hata gibi okunuyor, oysa klimanin kapali olmasi
+   normal bir durum. Ana sayfadaki widget'in guc dugmesiyle ayni dil. */
+.cihaz-guc  { margin-left: auto; flex: 0 0 auto;
+              width: 56px; height: 56px; border-radius: 50%;
+              display: flex; align-items: center; justify-content: center;
+              transition: background var(--gecis), color var(--gecis),
+                          transform var(--gecis); }
+.cihaz-guc svg { width: 30px; height: 30px; display: block; }
+.guc-acik   { color: #fff; background: var(--vurgu); }
+/* Odak halkasi: rozet kapaliyken gri zeminde mavi halka okunuyor, acikken
+   zemin zaten mavi oldugu icin beyaz halkaya geciyoruz. Bu kural eksikti —
+   Ev sayfasina girince imlec hic gorunmuyordu. */
+.cihaz-guc.odak { transform: scale(1.06); box-shadow: inset 0 0 0 3px var(--vurgu); }
+.cihaz-guc.guc-acik.odak { box-shadow: inset 0 0 0 3px #fff; }
+.guc-kapali { color: var(--silik); background: rgba(128,135,145,.18); }
+.guc-yok    { color: var(--silik); background: transparent; }
+
+/* hedef sicaklik satiri */
+.hedef { display: flex; align-items: center; justify-content: space-between;
+         margin: 6px 0 18px; }
+.hedef-etiket { font-size: 25px; color: var(--soluk); }
+.hedef-deger  { font-size: 62px; font-weight: 300; letter-spacing: -.04em;
+                font-variant-numeric: tabular-nums; }
+.hedef-dugme  { width: 58px; height: 58px; border-radius: 50%;
+                border: 0; font: inherit; font-size: 36px; font-weight: 500;
+                color: var(--metin); background: rgba(128,135,145,.14);
+                transition: background var(--gecis), transform var(--gecis); }
+.hedef-dugme.odak { background: var(--vurgu); color: #fff; transform: scale(1.1); }
+
+/* secenek satirlari (mod / fan) */
+.secenekler { display: flex; margin-top: 12px; }
+.secenekler + .secenekler { margin-top: 12px; }
+.sec-etiket { width: 128px; flex: 0 0 auto; font-size: 22px;
+              color: var(--soluk); align-self: center; }
+.sec-kutu   { flex: 1 1 0; display: flex; }
+.sec-oge {
+  flex: 1 1 0; text-align: center;
+  padding: 11px 4px; margin-left: 8px;
+  border-radius: 16px; font-size: 22px;
+  background: rgba(128,135,145,.12); color: var(--soluk);
+  transition: background var(--gecis), color var(--gecis), transform var(--gecis);
+}
+.sec-oge:first-child { margin-left: 0; }
+.sec-oge.secili { background: var(--vurgu-zemin); color: var(--vurgu); font-weight: 600; }
+.sec-oge.odak   { transform: scale(1.06); box-shadow: inset 0 0 0 2px var(--vurgu); }
+
+/* salt-okunur cihazlar */
+.cihaz-bilgi { display: flex; justify-content: space-between;
+               font-size: 25px; margin-top: 10px; }
+.cihaz-bilgi span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+
+/* =======================================================================
+   CIHAZ WIDGET'LARI (camasir, buzdolabi, bulasik) — klimanin kalibi.
+   Sagdaki buyuk rakam klimanin "22°"sinin karsiligi: bakista okunan tek
+   bilgi o (kalan sure, sicaklik).
+   ======================================================================= */
+.cw-sag { flex: 0 0 auto; margin-left: 16px; text-align: right; }
+.cw-buyuk { font-size: 50px; font-weight: 300; letter-spacing: -.04em;
+            font-variant-numeric: tabular-nums; line-height: 1; }
+.cw-kucuk { margin-top: 4px; font-size: 19px; color: var(--silik); }
+.cw-ikili { display: flex; }
+.cw-ikili > div + div { margin-left: 26px; }
+/* Cihaz erisilemiyorsa: soluk. Yaniltici bir deger gostermek yerine
+   "Erisilemiyor" yazip geri cekiliyor. */
+.cihaz-widget.pasif .kw-yazi, .cihaz-widget.pasif .kw-ikon,
+.cihaz-widget.pasif .cw-sag { opacity: .5; }
+/* Buzdolabi kapagi acik kaldiysa alt satir uyariya donuyor — salondaki
+   TV'nin tam isi bu. Kirmizi degil turuncu: tehlike degil, dikkat. */
+.cihaz-widget.uyari .kw-alt { color: #d98324; font-weight: 600; }
+body.gece .cihaz-widget.uyari .kw-alt { color: #e0a04a; }
+
+/* =======================================================================
+   WIDGET GALERISI
+   4 sutunlu izgara, onizlemeler gercek widget'in %70'i. Gercek boyutta
+   sayfaya sigmiyordu; %70'te 1:1 bakista okunabildigi olculdu.
+   ======================================================================= */
+.wg-kapasite { position: absolute; top: 150px; right: 54px;
+  font-size: 22px; color: var(--soluk);
+  padding: 8px 16px; border-radius: 999px;
+  border: 1px solid var(--cam-kenar); background: var(--cam); }
+.wg-kapasite b { color: var(--metin); font-weight: 600; }
+.wg-pencere { position: absolute; left: 0; right: 0; top: 206px; bottom: 0; overflow: hidden; }
+/* Pencere 30 px yukaridan basliyor ki odak buyumesi (scale 1.03) ust
+   kenarda kirpilmasin; icerik ayni yerde kaliyor. */
+.wg-icerik { position: absolute; left: 54px; top: 30px; width: 1812px; }
+.wg-bolum + .wg-bolum { margin-top: 44px; }
+.wg-etiket { font-size: 22px; font-weight: 600; letter-spacing: .04em;
+  color: var(--soluk); text-transform: uppercase; margin-bottom: 18px; }
+/* Satir birimi 150 px: 3x1 onizleme (111) + alt satir (34) sigiyor;
+   3x2 iki birim kapliyor (2x150+14 = 314 >= 245+34). dense akisiyla
+   3x1'ler 3x2'lerin yanindaki bosluga alt alta oturuyor — Apple'in
+   galerisindeki gibi bos delik kalmiyor. */
+.wg-izgara { display: grid; grid-template-columns: repeat(4, 423px);
+  grid-auto-rows: 150px; grid-auto-flow: row dense;
+  column-gap: 40px; row-gap: 14px; align-items: start; }
+.wg-oge.cift { grid-row: span 2; }
+/* Uzun galeride odak asagi inince icerik kayiyor (bkz. galeriKaydir). */
+.wg-icerik { transition: transform var(--gecis); }
+.wg-onizleme { position: relative; width: 423px; border-radius: 31px;
+  transition: transform var(--gecis), box-shadow var(--gecis); }
+.wg-onizleme > * { position: absolute; left: 0; top: 0; width: 604px;
+  transform: scale(.7); transform-origin: 0 0; margin: 0; }
+.wg-oge.odak .wg-onizleme { transform: scale(1.03);
+  box-shadow: 0 0 0 5px var(--panel-zemin), 0 0 0 9px var(--vurgu); }
+.wg-alt { display: flex; align-items: baseline; margin-top: 12px;
+  font-size: 21px; white-space: nowrap; }
+.wg-alt b { font-weight: 600; color: var(--metin); margin-right: 10px; }
+.wg-yer { color: var(--vurgu); font-weight: 500; }
+.wg-yer:before { content: ""; display: inline-block; width: 9px; height: 9px;
+  border-radius: 50%; background: var(--vurgu); margin-right: 8px; vertical-align: 2px; }
+.wg-ekle { color: var(--silik); }
+.wg-ekle:before { content: "+"; margin-right: 6px; font-weight: 600; }
+/* "Cihaz ayrintilari" — galeri ile eski cihaz sayfasi arasindaki kopru */
+.wg-baglanti { display: inline-flex; align-items: center; margin-top: 26px;
+  padding: 12px 22px; border-radius: 999px; font-size: 22px;
+  color: var(--soluk); background: rgba(128,135,145,.12); }
+.wg-baglanti:after { content: "›"; margin-left: 10px; font-size: 28px; line-height: 1; }
+.wg-baglanti.odak { background: var(--vurgu-zemin); color: var(--vurgu);
+  box-shadow: 0 0 0 3px var(--panel-zemin), 0 0 0 6px var(--vurgu); }
+
+/* =======================================================================
+   YERLESIM SAYFASI — galeride ENTER.
+   Kucuk ana sayfa haritasi, ODAKLI secenegin SONUCUNU onceden gosteriyor:
+   basmadan once nereye gidecegini, neyin yerinden cikacagini goruyorsun.
+   ======================================================================= */
+.wy-perde { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+  background: rgba(10,12,16,.38); }
+.wy-perde[hidden], .wy-sayfa[hidden] { display: none; }
+.wy-sayfa { position: absolute; left: 50%; top: 170px; width: 860px; margin-left: -430px;
+  padding: 36px 40px 34px; border-radius: 40px;
+  background: var(--panel-zemin); border: 1px solid var(--cam-kenar);
+  box-shadow: var(--golge-yum); }
+.wy-bas { display: flex; align-items: baseline; justify-content: space-between; }
+.wy-bas h3 { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -.01em; }
+.wy-boy { font-size: 20px; color: var(--silik); border: 1px solid var(--cam-kenar);
+  padding: 3px 12px; border-radius: 999px; }
+.wy-not { margin-top: 8px; font-size: 22px; color: var(--soluk); }
+.wy-harita { position: relative; margin: 26px auto 0; width: 520px; height: 262px;
+  border-radius: 24px; background: rgba(128,135,145,.10); }
+.wy-saat { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  font-size: 30px; font-weight: 200; color: var(--silik); }
+.wy-hucre { position: absolute; border-radius: 14px; background: var(--cam);
+  border: 1px solid var(--cam-kenar); font-size: 19px; color: var(--soluk);
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  transition: all var(--gecis); }
+.wy-hucre.hedef { background: var(--vurgu-zemin); border: 2px dashed var(--vurgu);
+  color: var(--vurgu); font-weight: 600; }
+.wy-hucre s { display: block; font-size: 15px; font-weight: 400; opacity: .7; }
+.wy-secenek { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 22px; }
+.wy-dugme { margin: 6px 8px; padding: 15px 28px; border-radius: 999px; font-size: 23px;
+  background: rgba(128,135,145,.14); color: var(--metin); }
+.wy-dugme.vazgec { background: transparent; color: var(--silik); }
+.wy-dugme.odak { background: var(--vurgu-zemin); color: var(--vurgu);
+  box-shadow: 0 0 0 3px var(--panel-zemin), 0 0 0 6px var(--vurgu); }
+
+
+/* =======================================================================
+   PIYASALAR — Apple Borsa widget'i kalibi.
+   Yukselis yesil, dusus kirmizi; deger ile degisim AYRI okunuyor.
+   ======================================================================= */
+.piyasa-widget { padding: 24px 30px; }
+.py-sutunlar { display: flex; height: 100%; align-items: center; }
+.py-sutun { flex: 1 1 0; min-width: 0; }
+.py-sutun + .py-sutun { margin-left: 18px; padding-left: 18px;
+  border-left: 1px solid var(--cam-kenar); }
+.py-ad { font-size: 20px; color: var(--soluk); white-space: nowrap; }
+.py-deger { margin-top: 4px; font-size: 34px; font-weight: 500;
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.py-deger small { font-size: 22px; font-weight: 400; color: var(--silik); margin-left: 2px; }
+.py-degisim { margin-top: 2px; font-size: 19px; font-weight: 600;
+  font-variant-numeric: tabular-nums; }
+.py-art { color: #1f9d55; }
+.py-eks { color: #d64545; }
+body.gece .py-art { color: #4cc77d; }
+body.gece .py-eks { color: #ff7a7a; }
+
+.piyasa-genis { padding: 26px 32px; }
+.py-bas { display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 26px; font-weight: 600; }
+.py-zaman { font-size: 19px; font-weight: 400; color: var(--silik); }
+.py-liste { margin-top: 10px; }
+.py-satir { display: flex; align-items: center; height: 50px;
+  border-top: 1px solid var(--cam-kenar); }
+.py-satir:first-child { border-top: 0; }
+.py-satir .py-ad { flex: 1 1 auto; font-size: 23px; color: var(--metin); }
+.py-satir .py-deger { margin: 0; font-size: 25px; font-weight: 500; }
+/* Degisim hapi: Apple Borsa'daki renkli kutu. Sabit genislik ki sutun
+   halinde hizalansin. */
+.py-hap { flex: 0 0 auto; width: 104px; margin-left: 18px; padding: 5px 0;
+  border-radius: 9px; text-align: center; font-size: 19px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: #fff; }
+.py-hap.art { background: #1f9d55; }
+.py-hap.eks { background: #d64545; }
+.py-hap.yok { background: rgba(128,135,145,.25); color: var(--soluk); }
+.piyasa-widget .py-bos { font-size: 22px; color: var(--silik); }
+
+/* =======================================================================
+   EKRAN SURESI — dilimli cubuk: en cok kullanilan uc uygulama + diger.
+   Renkler Apple Ekran Suresi'ndeki gibi ayrik ama yumusak.
+   ======================================================================= */
+.ekran-widget .kw-ikon { color: var(--silik); }
+.es-cubuk { display: flex; height: 10px; margin-top: 10px; border-radius: 999px;
+  overflow: hidden; background: rgba(128,135,145,.18); }
+.es-cubuk > div { height: 100%; }
+.es-cubuk > div + div { margin-left: 2px; }
+.es-r0 { background: #2b6ff0; }
+.es-r1 { background: #5ac8fa; }
+.es-r2 { background: #a78bfa; }
+.es-r3 { background: rgba(128,135,145,.45); }
+body.gece .es-r0 { background: #74abff; }
+
+
+/* Ekran suresi lejanti: dilimli cubugun anahtari, en cok kullanilan uc. */
+.ekran-widget .cw-sag { width: 200px; }
+.es-lejant { display: flex; align-items: center; justify-content: flex-end;
+  font-size: 20px; color: var(--soluk); white-space: nowrap; }
+.es-lejant + .es-lejant { margin-top: 5px; }
+.es-lejant i { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  margin-right: 8px; flex: 0 0 auto; }
+.es-lejant span { overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+.es-lejant b { margin-left: 10px; font-weight: 600; color: var(--metin);
+  font-variant-numeric: tabular-nums; }
+
+/* Uyku zamanlayici: sure dugmeleri. Acik olan DOLU (durum), odak HALKA. */
+.uyku-widget .kw-ikon, .film-widget .kw-ikon { color: var(--silik); }
+.sure-dugme { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sure-dugme.secili { background: var(--vurgu); color: #fff; }
+body.gece .sure-dugme.secili { color: #0d0f12; }
+.sure-dugme.secili.odak { background: var(--vurgu); color: #fff;
+  box-shadow: 0 0 0 3px var(--cam), 0 0 0 6px var(--vurgu); }
+.uyku-widget.acik .kw-alt, .film-widget.acik .kw-alt { color: var(--vurgu); font-weight: 500; }
+
+/* --- Trafik --- */
+/* Endeks halkasi: 0-100, renk duzeye gore; ortada sayi. */
+.tr-halka { position: relative; flex: 0 0 auto; width: 88px; height: 88px; margin-right: 20px; }
+.tr-halka svg { width: 88px; height: 88px; display: block; transform: rotate(-90deg); }
+.tr-halka circle { fill: none; stroke-width: 9; }
+.tr-halka .iz { stroke: rgba(128,135,145,.2); }
+.tr-halka .dolu { stroke: currentColor; stroke-linecap: round;
+  stroke-dasharray: 238.76; stroke-dashoffset: 238.76; transition: stroke-dashoffset 600ms cubic-bezier(.22,.68,.36,1); }
+.tr-halka span { position: absolute; left: 0; right: 0; top: 0; line-height: 88px; text-align: center;
+  font-size: 30px; font-weight: 600; letter-spacing: -.02em; color: var(--metin); font-variant-numeric: tabular-nums; }
+.trafik-widget .kw-alt b { font-weight: 600; }
+.tr-yaka { margin-top: 2px; font-size: 20px; color: var(--silik); white-space: nowrap; }
+.tr-yaka b { font-weight: 600; color: var(--soluk); margin-left: 5px; }
+.tr-yaka span + span { margin-left: 14px; }
+.tr-sag { flex: 0 0 auto; margin-left: 12px; }
+.tr-egri { width: 150px; height: 64px; display: block; overflow: visible; }
+.tr-egri polyline { fill: none; stroke: currentColor; stroke-width: 3.5;
+  stroke-linejoin: round; stroke-linecap: round; opacity: .45; }
+.tr-egri circle { fill: currentColor; }
+.tr-akici .tr-halka, .tr-akici .tr-sag, .tr-akici .kw-alt b { color: #1f9d55; }
+.tr-orta  .tr-halka, .tr-orta  .tr-sag, .tr-orta  .kw-alt b { color: #d98a00; }
+.tr-yogun .tr-halka, .tr-yogun .tr-sag, .tr-yogun .kw-alt b { color: #d64545; }
+body.gece .tr-akici .tr-halka, body.gece .tr-akici .tr-sag, body.gece .tr-akici .kw-alt b { color: #4cc77d; }
+body.gece .tr-orta  .tr-halka, body.gece .tr-orta  .tr-sag, body.gece .tr-orta  .kw-alt b { color: #ffb340; }
+body.gece .tr-yogun .tr-halka, body.gece .tr-yogun .tr-sag, body.gece .tr-yogun .kw-alt b { color: #ff7a7a; }
+
+/* =======================================================================
+   YOL DURUMU — iki guzergah. Renk gecikmenin trafiksiz sureye oranindan:
+   %15 alti yesil, %40 alti turuncu, ustu kirmizi. Gecikme dolu hap degil
+   renkli metin (iki kirmizi kutu yan yana alarm gibi duruyordu). Yol adi
+   tabela renginde levha: devlet yolu mavi, otoyol yesil.
+   ======================================================================= */
+.yol-widget { padding: 24px 30px; }
+.levha { flex: 0 0 auto; display: inline-block; min-width: 56px; margin-right: 14px; padding: 3px 8px;
+  border-radius: 7px; text-align: center; font-size: 19px; font-weight: 700; letter-spacing: .02em;
+  color: #fff; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.55); }
+.levha.mavi  { background: #1d5fb8; }
+.levha.yesil { background: #1f7a3e; }
+.levha.gri   { background: #6b727c; }
+.yl-liste { display: flex; flex-direction: column; justify-content: center; height: 100%; }
+.yl-satir { display: flex; align-items: center; height: 52px; }
+.yl-satir + .yl-satir { border-top: 1px solid var(--cam-kenar); }
+.yl-ad { flex: 1 1 auto; min-width: 0; font-size: 24px; color: var(--metin);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yl-dk { flex: 0 0 auto; font-size: 32px; font-weight: 500; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; }
+.yl-dk small { font-size: 20px; font-weight: 400; color: var(--silik); margin-left: 4px; }
+.yl-fark { flex: 0 0 auto; min-width: 86px; margin-left: 14px; text-align: right;
+  font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.yl-fark.akici { color: #1f9d55; } .yl-fark.orta { color: #c07a00; } .yl-fark.yogun { color: #d64545; }
+.yol-widget .yl-bos { font-size: 22px; color: var(--silik); }
+
+.yl-yon { margin-top: 2px; font-size: 20px; color: var(--soluk); }
+.yl-blok { margin-top: 12px; }
+.yl-blok-ust { display: flex; align-items: center; height: 50px; }
+.yl-blok .yl-dk { font-size: 44px; font-weight: 300; letter-spacing: -.03em; }
+.yl-blok .yl-dk small { font-size: 22px; }
+.yl-blok-alt { display: flex; align-items: baseline; margin-top: -2px; font-size: 20px; color: var(--silik); }
+.yl-blok-alt span:first-child { flex: 1 1 auto; white-space: nowrap; }
+.yl-blok-alt .yl-fark { font-size: 20px; }
+.yl-cubuk { display: flex; height: 6px; margin-top: 7px; border-radius: 999px; overflow: hidden;
+  background: rgba(128,135,145,.16); }
+.yl-cubuk .yl-normal { background: rgba(128,135,145,.42); }
+.yl-cubuk .yl-fazla.akici { background: #1f9d55; }
+.yl-cubuk .yl-fazla.orta  { background: #e69a00; }
+.yl-cubuk .yl-fazla.yogun { background: #d64545; }
+.yol-genis { position: relative; }
+.yl-yaka { position: absolute; left: 30px; right: 30px; bottom: 20px; display: flex;
+  font-size: 19px; color: var(--silik); }
+.yl-yaka span { display: flex; align-items: center; }
+.yl-yaka span + span { margin-left: 22px; }
+.yl-yaka i { width: 9px; height: 9px; border-radius: 50%; margin-right: 8px; background: #8b929b; }
+.yl-yaka i.tr-akici { background: #1f9d55; } .yl-yaka i.tr-orta { background: #e69a00; }
+.yl-yaka i.tr-yogun { background: #d64545; }
+.yl-yaka b { font-weight: 600; color: var(--metin); margin-left: 6px; }
+body.gece .yl-fark.akici { color: #4cc77d; } body.gece .yl-fark.orta { color: #ffb340; }
+body.gece .yl-fark.yogun { color: #ff7a7a; }
+body.gece .levha { box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.35); }
+
+/* =======================================================================
+   TRAFIK HARITASI — tam ekran. Widget'ta tum karti kaplayan odak katmani
+   (.kart-ac): odak dili ayni, halka.
+   ======================================================================= */
+.trafik-widget, .yol-widget { position: relative; }
+.kart-ac { position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: inherit; z-index: 2;
+  transition: box-shadow var(--gecis); }
+.kart-ac.odak { box-shadow: 0 0 0 3px var(--cam), 0 0 0 6px var(--vurgu); }
+
+.harita { position: fixed; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 50;
+  overflow: hidden; background: #e8ebef; }
+body.gece .harita { background: #1b1f26; }
+.harita[hidden] { display: none; }
+.hr-katman { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
+.hr-katman img { position: absolute; display: block; }
+.hr-cizgi { position: absolute; left: 0; top: 0; }
+/* Guzergah yari saydam genis bir hale: altindaki TomTom akis katmaninin
+   yol parcasi yol parcasi canli renkleri gorunmeye devam etsin (opak cizgi
+   onlari kapatiyordu — asil bilgi o). */
+.hr-cizgi .kilif { display: none; }
+.hr-cizgi .yol { fill: none; stroke-width: 22; stroke-linejoin: round; stroke-linecap: round; opacity: .30; }
+body.gece .hr-cizgi .yol { opacity: .34; }
+.hr-cizgi .yol.akici { stroke: #1f9d55; } .hr-cizgi .yol.orta { stroke: #d98a00; }
+.hr-cizgi .yol.yogun { stroke: #d64545; } .hr-cizgi .yol.yok { stroke: #2b6ff0; }
+/* Kapali rota: duz gri, en altta (cizim sirasi) — ortak koridorda (E-5)
+   ustteki acik rotalarin rengi gorunur, gri yalnizca kapali kuyrukta
+   kalir. Kesik cizgi denendi: butun E-5 kapaliymis gibi okunuyordu. */
+.hr-cizgi .yol.kapali { stroke: #8a909a; }
+.yl-dk.kapali-dk, .hr-yol .dk.kapali-dk, .hd-ust .hd-dk.kapali-dk { font-size: 30px;  color: #b3261e; font-weight: 600; letter-spacing: 0; }
+.durak-widget .yl-dk.kapali-dk { font-size: 24px; }
+body.gece .yl-dk.kapali-dk, body.gece .hr-yol .dk.kapali-dk, body.gece .hd-ust .hd-dk.kapali-dk { color: #ff7a6e; }
+.hr-cizgi .uc { fill: #fff; stroke: #16181c; stroke-width: 3; }
+body.gece .hr-cizgi .uc { fill: #16181c; stroke: #f2f4f7; }
+.hr-cizgi .etiket-zemin { fill: var(--panel-zemin); stroke: var(--cam-kenar); stroke-width: 1; }
+.hr-cizgi .etiket { font-size: 22px; font-weight: 600; fill: var(--metin); }
+
+.hr-kart { position: absolute; left: 48px; top: 48px; width: 520px; padding: 28px 30px 24px;
+  border-radius: 34px; background: var(--panel-zemin);
+  box-shadow: 0 1px 2px rgba(16,18,22,.08), 0 18px 50px rgba(16,18,22,.18); }
+.hr-kart h3 { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -.01em; }
+.hr-alt { margin-top: 4px; font-size: 21px; color: var(--soluk); }
+.hr-yol { display: flex; align-items: center; margin-top: 20px; }
+.hr-yol .ad { flex: 1 1 auto; font-size: 26px; }
+.hr-yol .dk { font-size: 42px; font-weight: 300; letter-spacing: -.03em; }
+.hr-yol .dk small { font-size: 21px; color: var(--silik); margin-left: 4px; }
+.hr-yol-not { display: flex; margin-top: 0; font-size: 20px; color: var(--silik); }
+.hr-yol-not .yl-fark { flex: 1 1 auto; font-size: 20px; }
+.hr-yaka { display: flex; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--cam-kenar);
+  font-size: 19px; color: var(--silik); }
+.hr-yaka span + span { margin-left: 22px; }
+.hr-yaka b { margin-left: 6px; font-weight: 600; color: var(--metin); }
+
+.hr-gorunum { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%);
+  display: flex; align-items: center; padding: 8px; border-radius: 999px;
+  background: var(--panel-zemin); box-shadow: 0 10px 30px rgba(16,18,22,.18); }
+.hr-gorunum span { padding: 10px 26px; border-radius: 999px; font-size: 22px; color: var(--soluk); }
+.hr-gorunum span.secili { background: var(--vurgu); color: #fff; font-weight: 600; }
+.hr-gorunum .ipucu { padding: 0 14px 0 18px; font-size: 18px; color: var(--silik); }
+.hr-lejant { position: absolute; right: 48px; bottom: 52px; display: flex; padding: 10px 18px;
+  border-radius: 999px; background: var(--panel-zemin); font-size: 18px; color: var(--soluk);
+  box-shadow: 0 10px 30px rgba(16,18,22,.14); }
+.hr-lejant span + span { margin-left: 16px; }
+.hr-lejant i { display: inline-block; width: 22px; height: 6px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+.hr-lejant .l1 { background: #34b233; } .hr-lejant .l2 { background: #f7a600; }
+.hr-lejant .l3 { background: #e5202b; } .hr-lejant .l4 { background: #8c1c13; }
+.hr-telif { position: absolute; right: 48px; bottom: 16px; padding: 2px 10px; border-radius: 8px;
+  font-size: 15px; color: var(--soluk); background: var(--panel-zemin); }
+
+/* iOS tarzi anahtar (film modu). Odak dili ayni: halka. */
+.anahtar { position: relative; width: 76px; height: 44px; border-radius: 999px; flex: 0 0 auto;
+  background: rgba(120,128,138,.32); transition: background var(--gecis), box-shadow var(--gecis); }
+.anahtar .topuz { position: absolute; left: 4px; top: 4px; width: 36px; height: 36px; border-radius: 50%;
+  background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.25); transition: transform var(--gecis); }
+.anahtar.acik { background: #34c759; }
+.anahtar.acik .topuz { transform: translateX(32px); }
+.anahtar.odak { box-shadow: 0 0 0 3px var(--cam), 0 0 0 6px var(--vurgu); }
+
+/* --- Duraklar (kontrol noktali) gorunumu: haritasiz, metro hatti gibi ---- */
+.hr-duraklar { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: var(--zemin-duz, #eef0f4); }
+body.gece .hr-duraklar { background: #121418; }
+.hr-duraklar[hidden] { display: none; }
+.hd-bas { position: absolute; left: 96px; top: 64px; }
+.hd-bas h3 { margin: 0; font-size: 46px; font-weight: 600; letter-spacing: -.02em; }
+.hd-bas div { margin-top: 4px; font-size: 24px; color: var(--soluk); }
+.hd-yol { position: absolute; left: 96px; right: 96px; height: 330px; }
+.hd-ust { display: flex; align-items: center; height: 64px; }
+.hd-ust .levha { font-size: 24px; min-width: 70px; padding: 5px 10px; border-radius: 9px; }
+.hd-ust .hd-hedef { flex: 1 1 auto; font-size: 36px; font-weight: 500; }
+.hd-ust .hd-dk { font-size: 60px; font-weight: 300; letter-spacing: -.03em; }
+.hd-ust .hd-dk small { font-size: 28px; color: var(--silik); margin-left: 6px; }
+.hd-ust .yl-fark { font-size: 26px; min-width: 110px; }
+.hd-ust .hd-varis { margin-left: 28px; font-size: 24px; color: var(--soluk); white-space: nowrap; }
+.hd-hat { position: absolute; left: 0; right: 0; top: 104px; height: 210px; }
+.hd-parca { position: absolute; top: 100px; height: 16px; margin-top: -8px; border-radius: 8px; background: #8b929b; }
+.hd-parca.akici { background: #2fae63; } .hd-parca.orta { background: #f0a500; }
+.hd-parca.yogun { background: #e04848; } .hd-parca.kapali { background: #7a1a14; }
+.hd-etiket { position: absolute; top: 18px; width: 200px; margin-left: -100px; text-align: center; }
+.hd-etiket b { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.hd-etiket .yl-fark { display: inline; margin-left: 8px; font-size: 24px; min-width: 0; }
+.hd-etiket div { margin-top: 2px; font-size: 20px; color: var(--silik); }
+.hd-durak { position: absolute; top: 100px; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+  background: var(--panel-zemin); box-shadow: 0 0 0 5px var(--metin); }
+.hd-ad { position: absolute; top: 132px; width: 220px; margin-left: -110px; text-align: center;
+  font-size: 24px; color: var(--soluk); white-space: nowrap; }
+.hd-ad.uc { color: var(--metin); font-weight: 600; }
+
+/* =======================================================================
+   DURAKLAR widget'i — haritadaki kontrol noktali gorunumun kucuk hali.
+   ======================================================================= */
+.durak-widget { position: relative; padding: 24px 30px; }
+.dw-liste { display: flex; flex-direction: column; justify-content: center; height: 100%; }
+.dw-satir { display: flex; align-items: center; height: 52px; }
+.dw-satir + .dw-satir { border-top: 1px solid var(--cam-kenar); }
+.dw-hat { position: relative; flex: 1 1 auto; height: 22px; margin: 0 18px 0 4px; }
+.dw-parca { position: absolute; top: 8px; height: 6px; border-radius: 3px; background: #8b929b; }
+.dw-parca.akici { background: #2fae63; } .dw-parca.orta { background: #f0a500; }
+.dw-parca.yogun { background: #e04848; } .dw-parca.kapali { background: #7a1a14; }
+.dw-nokta { position: absolute; top: 4px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%;
+  background: var(--kart-ic); box-shadow: 0 0 0 3px var(--metin); }
+.durak-widget .yl-dk { font-size: 30px; }
+.dw-blok { margin-top: 18px; }
+.dw-blok-ust { display: flex; align-items: center; height: 44px; }
+.dw-blok .dw-hat { height: 26px; margin: 8px 0 0; }
+.dw-blok .dw-parca { top: 10px; height: 7px; }
+.dw-blok .dw-nokta { top: 6px; width: 15px; height: 15px; margin-left: -7.5px; }
+.dw-uclar { display: flex; justify-content: space-between; margin-top: 2px; font-size: 19px; color: var(--silik); }
+.dw-not { margin-top: 8px; font-size: 20px; color: var(--soluk); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dw-not b { font-weight: 600; }
+.dw-not b.akici { color: #1f9d55; } .dw-not b.orta { color: #c07a00; } .dw-not b.yogun { color: #d64545; }
+body.gece .dw-not b.akici { color: #4cc77d; } body.gece .dw-not b.orta { color: #ffb340; } body.gece .dw-not b.yogun { color: #ff7a7a; }
+.durak-widget .yl-bos { font-size: 22px; color: var(--silik); }
+.durak-widget:not(.durak-genis) { padding: 10px 30px; }
+.dw-kblok + .dw-kblok { border-top: 1px solid var(--cam-kenar); margin-top: 3px; padding-top: 2px; }
+.dw-kblok .dw-satir { height: 26px; }
+.dw-kblok + .dw-kblok .dw-satir { border-top: 0; }
+/* ust ve alt satir hatla ayni yatay araligi kullaniyor: gorunmez levha +
+   ayni kenar bosluklari + sagda sure sutunu genisligi */
+.dw-ustsatir, .dw-altsatir { display: flex; align-items: center; height: 20px; }
+.dw-ustsatir .levha, .dw-altsatir .levha { height: 0; padding-top: 0; padding-bottom: 0; border: 0; }
+.dw-sureler, .dw-alt { position: relative; flex: 1 1 auto; height: 20px; margin: 0 18px 0 4px; }
+.dw-sure { position: absolute; top: 0; transform: translateX(-50%); font-size: 16px; line-height: 20px;
+  color: var(--soluk); font-variant-numeric: tabular-nums; }
+.dw-uc { position: absolute; top: 0; left: 0; font-size: 17px; line-height: 20px; color: var(--silik); white-space: nowrap; }
+.dw-uc.son { left: auto; right: 0; }
+.dw-kblok .yl-dk, .dw-altsatir .yl-fark, .dw-sag-bos { flex: 0 0 auto; width: 104px; text-align: right; }
+.dw-altsatir .yl-fark { font-size: 17px; min-width: 0; margin-left: 0; }
+.dw-altsatir .yl-fark { font-size: 18px; min-width: 0; margin-left: 0; }
+
+/* =======================================================================
+   HAVA ve NAMAZ — 3x1 halleri (Apple Hava'nin genis-kisa widget'i gibi).
+   ======================================================================= */
+.hava-kucuk, .namaz-kucuk { display: flex; align-items: center; padding: 22px 28px; }
+.hk-ikon { flex: 0 0 auto; width: 62px; height: 62px; }
+.hk-derece { flex: 0 0 auto; margin: 0 18px 0 10px; font-size: 60px; font-weight: 300;
+  letter-spacing: -.04em; line-height: 1; }
+.hk-yazi { flex: 1 1 auto; min-width: 0; }
+.hk-durum { font-size: 27px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hk-alt { margin-top: 3px; font-size: 21px; color: var(--silik); white-space: nowrap; }
+.hk-saatler { flex: 0 0 auto; display: flex; margin-left: 10px; }
+.hk-saat { width: 56px; text-align: center; }
+.hk-saat + .hk-saat { margin-left: 4px; }
+.hk-saat .s { font-size: 18px; color: var(--silik); }
+.hk-saat svg { display: block; width: 30px; height: 30px; margin: 4px auto; }
+.hk-saat .d { font-size: 22px; }
+
+.nk-ikon { flex: 0 0 auto; width: 58px; height: 58px; margin-right: 18px; }
+.nk-yazi { flex: 1 1 auto; min-width: 0; }
+.nk-vakit { font-size: 30px; white-space: nowrap; }
+.nk-vakit b { font-weight: 600; margin-right: 10px; }
+.nk-alt { margin-top: 3px; font-size: 21px; color: var(--silik); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nk-sag { flex: 0 0 auto; text-align: right; margin-left: 12px; }
+.nk-sayim { font-size: 48px; font-weight: 300; letter-spacing: -.03em; line-height: 1;
+  color: var(--vurgu); font-variant-numeric: tabular-nums; }
+.nk-etiket { margin-top: 4px; font-size: 19px; color: var(--silik); }
+
+/* Orta bolge 52 px daha dar (552): 1:1 olculdu, ekran suresinin alt
+   yazisi (243/216) ve klimanin alt yazisi (188/147) kesiliyordu. */
+.bolge.orta .es-dun { display: none; }
+.bolge.orta .klima-widget .kw-ikon { width: 40px; height: 40px; margin-right: 10px; }
+.bolge.orta .klima-widget .kw-kontrol > * + * { margin-left: 4px; }
+.bolge.orta .klima-widget .kw-hedef { min-width: 64px; }
+.bolge.orta .klima-widget .kw-hedef-deger { font-size: 42px; }

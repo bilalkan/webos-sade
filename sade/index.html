@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920,height=1080,initial-scale=1">
+<title>Sade</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="gunduz">
+
+  <header class="menubar">
+    <nav class="sekmeler" id="sekmeler">
+      <button class="sekme etkin" data-gorunum="ev">Ana Sayfa</button>
+      <button class="sekme" data-gorunum="widget">Widget</button>
+      <button class="sekme" data-gorunum="uygulamalar">Uygulamalar</button>
+    </nav>
+    <div class="menubar-sag">
+      <span class="mb-hava" id="mb-hava" hidden>
+        <svg class="mb-ikon" id="mb-ikon" viewBox="0 0 64 64" aria-hidden="true"></svg>
+        <span id="mb-derece">--°</span>
+      </span>
+
+      <!-- Sira (soldan saga): parlaklik · ses · bluetooth · wifi · ayarlar · saat
+           Saat blogu en sagda; dişli ile gunes birbirine benzemesin diye
+           ayarlar gercek disli, parlaklik gunes olarak cizildi. -->
+      <span class="mb-dugme odaklanir" id="mb-parlaklik" data-is="parlaklik" title="Parlaklık" hidden>
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="32" r="11" fill="none" stroke="currentColor" stroke-width="4.5"/>
+          <path d="M32 7v8M32 49v8M57 32h-8M15 32H7M49.6 14.4l-5.6 5.6M20 44l-5.6 5.6M49.6 49.6L44 44M20 20l-5.6-5.6"
+                fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
+        </svg>
+      </span>
+
+      <span class="mb-dugme odaklanir" id="mb-ses" data-is="ses" title="Ses">
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <!-- Glif kutuyu digerleri kadar dolduruyor (y 13..51); eskisi
+               ~34 birimdi ve yaninda kucuk duruyordu. -->
+          <path d="M8 25h12l14-12v38L20 39H8z" fill="currentColor"/>
+          <g class="dalga">
+            <path d="M41 23a15 15 0 0 1 0 18" fill="none" stroke="currentColor"
+                  stroke-width="4.5" stroke-linecap="round"/>
+            <path d="M49 16a25 25 0 0 1 0 32" fill="none" stroke="currentColor"
+                  stroke-width="4.5" stroke-linecap="round"/>
+          </g>
+          <path class="sessiz" d="M42 24l16 16M58 24L42 40" fill="none" stroke="currentColor"
+                stroke-width="5" stroke-linecap="round"/>
+        </svg>
+      </span>
+
+      <span class="mb-dugme odaklanir" id="mb-bt" data-is="bt" title="Bluetooth">
+        <!-- Apple'daki gibi gercek Bluetooth runu: dikey eksen uzerinde
+             ust ve alt ucgen. Oncekini elle cizmistim, orantisi tutmuyordu. -->
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M19 20L45 44L32 55V9L45 20L19 44" fill="none" stroke="currentColor"
+                stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+
+      <span class="mb-dugme odaklanir" id="mb-ag" data-is="ag" title="Ağ">
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <path class="y3" d="M8 24a40 40 0 0 1 48 0" fill="none" stroke="currentColor"
+                stroke-width="5" stroke-linecap="round"/>
+          <path class="y2" d="M17 34a26 26 0 0 1 30 0" fill="none" stroke="currentColor"
+                stroke-width="5" stroke-linecap="round"/>
+          <path class="y1" d="M26 44a12 12 0 0 1 12 0" fill="none" stroke="currentColor"
+                stroke-width="5" stroke-linecap="round"/>
+          <circle cx="32" cy="52" r="3.5" fill="currentColor"/>
+        </svg>
+      </span>
+
+      <span class="mb-dugme odaklanir" id="mb-ayar" data-is="ayar" title="Ayarlar">
+        <!-- macOS Denetim Merkezi dili: iki yatay surgu. Disli hem
+             parlaklik gunesiyle karisiyordu hem de kucuk boyutta
+             okunmuyordu; bu glif her ikisinde de daha iyi. -->
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="9" y="15" width="46" height="15" rx="7.5"
+                fill="none" stroke="currentColor" stroke-width="4"/>
+          <circle cx="21" cy="22.5" r="3.6" fill="currentColor"/>
+          <rect x="9" y="34" width="46" height="15" rx="7.5"
+                fill="none" stroke="currentColor" stroke-width="4"/>
+          <circle cx="43" cy="41.5" r="3.6" fill="currentColor"/>
+        </svg>
+      </span>
+
+      <span class="mb-zaman" id="mb-zaman">--</span>
+    </div>
+  </header>
+
+  <!-- menu cubugu acilir paneli: odakli simgenin altinda belirir -->
+  <div class="mb-panel" id="mb-panel" hidden>
+    <div class="mb-panel-baslik" id="mb-panel-baslik"></div>
+    <div class="mb-panel-ic" id="mb-panel-ic"></div>
+    <!-- Hata satiri panel-ic'in DISINDA: panel icerigi 15 sn'de bir
+         yeniden ciziliyor ve ic'teki her sey siliniyordu, yani reddedilen
+         komutun mesaji kullaniciya hic gorunmuyordu. -->
+    <div class="panel-hata" id="mb-panel-hata" hidden></div>
+  </div>
+
+  <main>
+    <section class="gorunum etkin" id="gorunum-ev">
+
+      <!-- SOL BOLGE: 3 sutun x N satir izgara -->
+      <div class="bolge sol" id="bolge-sol">
+
+      <section class="kart hava widget" id="hava-panel" data-wid="hava" data-gen="3" data-sat="2" hidden>
+        <div class="hava-ust">
+          <svg class="hava-ikon" id="hava-ikon" viewBox="0 0 64 64" aria-hidden="true"></svg>
+          <div class="hava-metin">
+            <div class="hava-durum" id="hava-durum">&nbsp;</div>
+            <div class="hava-sehir" id="hava-sehir">&nbsp;</div>
+          </div>
+          <div class="hava-sag">
+            <div class="hava-derece" id="hava-derece">--°</div>
+            <div class="hava-alt">
+              <span id="hava-yuksek">↑ --°</span>
+              <span id="hava-dusuk">↓ --°</span>
+            </div>
+          </div>
+        </div>
+        <div class="saatlik" id="saatlik"></div>
+      </section>
+
+      <!-- Klima: artik ortada asili degil, hava durumunun ALTINDA (3x1). -->
+      <section class="klima-widget widget" id="klima-widget" data-wid="klima" data-gen="3" data-sat="1" hidden>
+        <svg class="kw-ikon" id="kw-ikon" viewBox="0 0 64 64" aria-hidden="true"></svg>
+        <div class="kw-yazi">
+          <div class="kw-ad">Klima</div>
+          <div class="kw-alt" id="kw-alt">&nbsp;</div>
+        </div>
+        <div class="kw-kontrol">
+          <div class="kw-dugme odaklanir" id="kw-eksi" data-is="eksi">−</div>
+          <div class="kw-hedef">
+            <span class="kw-hedef-deger" id="kw-hedef">--</span><span class="kw-derece">°</span>
+          </div>
+          <div class="kw-dugme odaklanir" id="kw-arti" data-is="arti">+</div>
+          <div class="kw-guc odaklanir" id="kw-guc" data-is="guc">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <path d="M32 10v22" fill="none" stroke="currentColor" stroke-width="6"
+                    stroke-linecap="round"/>
+              <path d="M20.5 18.5a17 17 0 1 0 23 0" fill="none" stroke="currentColor"
+                    stroke-width="6" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      </div><!-- /bolge sol -->
+
+      <!-- ORTA: saat. Izgaranin DISINDA — iki bolgenin arasindaki kolon
+           onun, widget'lar oraya tasmiyor. -->
+      <div class="merkez">
+        <div class="buyuk-saat" id="saat">--:--</div>
+        <p class="tarih" id="tarih"></p>
+      </div>
+
+      <!-- ORTA BOLGE: saatin altinda tek satir (yan bolgelerin 3. satiri hizasi).
+           Bos kalabilir; o zaman ekran eskisi gibi. -->
+      <div class="bolge orta" id="bolge-orta"></div>
+
+      <!-- SAG BOLGE -->
+      <div class="bolge sag" id="bolge-sag">
+
+      <section class="kart ezan widget" id="ezan-panel" data-wid="namaz" data-gen="3" data-sat="2" hidden>
+        <div class="ezan-ust">
+          <span class="ezan-yer" id="ezan-yer">&nbsp;</span>
+          <span class="ezan-hicri" id="ezan-hicri"></span>
+        </div>
+        <ul class="vakitler" id="vakitler"></ul>
+        <div class="ezan-geri">
+          <span class="geri-etiket" id="geri-etiket">&nbsp;</span>
+          <span class="geri-sayim" id="geri-sayim">--:--</span>
+        </div>
+      </section>
+
+
+      <!-- TV sistem durumu: sag bolgenin 3x1 yuvasi -->
+      <section class="klima-widget sistem-widget widget" id="sistem-widget" data-wid="sistem"
+               data-gen="3" data-sat="1" hidden>
+        <!-- Ust satir daralmis halde tek basina gorunuyor; genisleyince
+             ayni yerde kaliyor ve altina ayrinti bolumu aciliyor. -->
+        <div class="sw-ust">
+          <svg class="kw-ikon" id="sw-ikon" viewBox="0 0 64 64" aria-hidden="true">
+            <rect x="8" y="14" width="48" height="31" rx="5" fill="none"
+                  stroke="currentColor" stroke-width="5"/>
+            <path d="M22 53h20" fill="none" stroke="currentColor"
+                  stroke-width="5" stroke-linecap="round"/>
+            <path d="M32 45v8" fill="none" stroke="currentColor" stroke-width="5"/>
+          </svg>
+          <div class="kw-yazi">
+            <div class="kw-ad">TV</div>
+            <div class="kw-alt" id="sw-alt">&nbsp;</div>
+            <div class="sw-ram-satir">
+              <span class="sw-ram-etiket">RAM</span>
+              <div class="sw-ram" aria-hidden="true"><div class="sw-ram-dolu" id="sw-ram-dolu"></div></div>
+              <span class="sw-ram-yuzde" id="sw-ram-yuzde">—</span>
+            </div>
+          </div>
+          <div class="kw-kontrol">
+            <!-- Simsek: bellegi bosalt + arka plandakileri kapat. Kelime
+                 yerine simge, cunku "Bosalt" neyi bosalttigini
+                 soylemiyordu ve TV mesafesinde simge daha okunakli. -->
+            <div class="sw-dugme odaklanir" id="sw-bosalt" data-is="bosalt"
+                 title="Belleği boşalt" aria-label="Belleği boşalt">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M13 2 L4 14 h6 l-1 8 l9-12 h-6 z" fill="currentColor"/>
+              </svg>
+            </div>
+            <!-- Genislet: widget 3x1'den 3x3'e buyuyor, calisan
+                 uygulamalari tek tek kapatilabilir halde listeliyor. -->
+            <div class="sw-dugme odaklanir" id="sw-genislet" data-is="genislet"
+                 title="Ayrıntılar" aria-label="Ayrıntılar">
+              <svg viewBox="0 0 24 24" aria-hidden="true" id="sw-sevron">
+                <path d="M7 10l5 5 5-5" fill="none" stroke="currentColor"
+                      stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <div class="sw-ayrinti" id="sw-ayrinti" hidden></div>
+      </section>
+
+      </div><!-- /bolge sag -->
+
+      <p class="kart-hata" id="veri-hata" hidden></p>
+
+      <!-- ALT: dock -->
+      <div class="dock-sarmal">
+        <p class="secili-ad" id="secili-ad">&nbsp;</p>
+        <div class="dock" id="raf"><div class="dock-ic" id="raf-ic"></div></div>
+      </div>
+    </section>
+
+    <!-- EV: cihaz kontrolleri -->
+    <!-- WIDGET GALERISI. Eski "Ev" sekmesinin yeri. Tum widget'lar burada
+         gruplu ve canli onizlemeli duruyor; ENTER ile ana sayfaya
+         yerlestirme sayfasi aciliyor. Cihazlarin ayrintili kontrolleri
+         (klimanin mod/fan ayari gibi) KAYBOLMADI: "Cihaz ayrintilari"
+         satiri asagidaki eski sayfayi aciyor. -->
+    <section class="gorunum" id="gorunum-widget">
+      <h2 class="bolum-baslik">Widget</h2>
+      <div class="wg-kapasite" id="wg-kapasite"></div>
+      <div class="wg-pencere" id="wg-pencere"><div class="wg-icerik" id="wg-icerik"></div></div>
+      <div class="wy-perde" id="wy-perde" hidden></div>
+      <div class="wy-sayfa" id="wy-sayfa" hidden></div>
+    </section>
+
+    <!-- Ana sayfada YERLESMEMIS widget'lar burada bekliyor (gorunmez).
+         Veri cizimleri yerden bagimsiz calisiyor; yerlesim degisince
+         eleman bolgeye tasiniyor. -->
+    <div class="widget-depo" id="widget-depo">
+      <!-- HAVA (3x1): simge + buyuk derece | durum, sehir, en yuksek/dusuk | sonraki 3 saat -->
+      <section class="kart hava-kucuk widget" id="hava-kucuk-widget"
+               data-wid="havaKucuk" data-gen="3" data-sat="1" hidden>
+        <svg class="hk-ikon" id="hk-ikon" viewBox="0 0 64 64" aria-hidden="true"></svg>
+        <div class="hk-derece" id="hk-derece">--°</div>
+        <div class="hk-yazi">
+          <div class="hk-durum" id="hk-durum">&nbsp;</div>
+          <div class="hk-alt" id="hk-alt">&nbsp;</div>
+        </div>
+        <div class="hk-saatler" id="hk-saatler"></div>
+      </section>
+      <!-- NAMAZ VAKTI (3x1): siradaki vakit + geri sayim -->
+      <section class="kart namaz-kucuk widget" id="namaz-kucuk-widget"
+               data-wid="namazKucuk" data-gen="3" data-sat="1" hidden>
+        <svg class="nk-ikon" id="nk-ikon" viewBox="0 0 64 64" aria-hidden="true"></svg>
+        <div class="nk-yazi">
+          <div class="nk-vakit" id="nk-vakit">&nbsp;</div>
+          <div class="nk-alt" id="nk-alt">&nbsp;</div>
+        </div>
+        <div class="nk-sag">
+          <div class="nk-sayim" id="nk-sayim">--:--</div>
+          <div class="nk-etiket">kalan</div>
+        </div>
+      </section>
+      <!-- PIYASALAR (kucuk, 3x1): Apple'in kucuk Borsa widget'i gibi uc sutun. -->
+      <section class="kart piyasa-widget widget" id="piyasa-widget"
+               data-wid="piyasa" data-gen="3" data-sat="1" hidden>
+        <div class="py-sutunlar" id="py-kucuk"></div>
+      </section>
+      <!-- PIYASALAR (buyuk, 3x2): bes kalem liste halinde. -->
+      <section class="kart piyasa-widget piyasa-genis widget" id="piyasa-genis-widget"
+               data-wid="piyasaGenis" data-gen="3" data-sat="2" hidden>
+        <div class="py-bas"><span>Piyasalar</span><span class="py-zaman" id="py-zaman"></span></div>
+        <div class="py-liste" id="py-liste"></div>
+      </section>
+      <!-- TRAFIK (3x1): IBB sehir geneli endeks + son 24 saatin egrisi. -->
+      <section class="klima-widget trafik-widget widget" id="trafik-widget"
+               data-wid="trafik" data-gen="3" data-sat="1" hidden>
+        <div class="kart-ac odaklanir" data-is="harita" aria-hidden="true"></div>
+        <!-- Endeks halkasi (Apple Etkinlik halkasi gibi): 0-100, renk duzeye gore -->
+        <div class="tr-halka" aria-hidden="true">
+          <svg viewBox="0 0 88 88"><circle class="iz" cx="44" cy="44" r="38"/>
+            <circle class="dolu" id="tr-dolu" cx="44" cy="44" r="38"/></svg>
+          <span id="tr-sayi"></span>
+        </div>
+        <div class="kw-yazi">
+          <div class="kw-ad">Trafik</div>
+          <div class="kw-alt" id="tr-alt">&nbsp;</div>
+          <div class="tr-yaka" id="tr-yaka"></div>
+        </div>
+        <div class="tr-sag" id="tr-sag"></div>
+      </section>
+      <!-- YOL DURUMU (3x1): iki guzergah alt alta, kisa. Guzergah tanimli
+           degilse (servis-ayar.json) galeride hic gorunmez. -->
+      <section class="kart yol-widget widget" id="yol-widget"
+               data-wid="yol" data-gen="3" data-sat="1" hidden>
+        <div class="kart-ac odaklanir" data-is="harita" aria-hidden="true"></div>
+        <div class="yl-liste" id="yl-kucuk"></div>
+      </section>
+      <!-- YOL DURUMU (3x2): sure, normal sure, gecikme cubugu, yaka endeksleri. -->
+      <section class="kart yol-widget yol-genis widget" id="yol-genis-widget"
+               data-wid="yolGenis" data-gen="3" data-sat="2" hidden>
+        <div class="kart-ac odaklanir" data-is="harita" aria-hidden="true"></div>
+        <div class="py-bas"><span>Yol durumu</span><span class="py-zaman" id="yl-zaman"></span></div>
+        <div class="yl-yon" id="yl-yon">&nbsp;</div>
+        <div id="yl-genis"></div>
+        <div class="yl-yaka" id="yl-yaka"></div>
+      </section>
+      <!-- DURAKLAR (3x1): her guzergah tek satir — levha, renkli mini hat, sure. -->
+      <section class="kart durak-widget widget" id="durak-widget"
+               data-wid="durak" data-gen="3" data-sat="1" hidden>
+        <div class="kart-ac odaklanir" data-is="harita-durak" aria-hidden="true"></div>
+        <div class="dw-liste" id="dw-kucuk"></div>
+      </section>
+      <!-- DURAKLAR (3x2): duraklı mini hat + en yavas parca. -->
+      <section class="kart durak-widget durak-genis widget" id="durak-genis-widget"
+               data-wid="durakGenis" data-gen="3" data-sat="2" hidden>
+        <div class="kart-ac odaklanir" data-is="harita-durak" aria-hidden="true"></div>
+        <div class="py-bas"><span>Duraklar</span><span class="py-zaman" id="dw-zaman"></span></div>
+        <div id="dw-genis"></div>
+      </section>
+      <!-- EKRAN SURESI (3x1): bugunku toplam + en cok kullanilanlarin dilimli cubugu. -->
+      <section class="klima-widget ekran-widget widget" id="ekran-widget"
+               data-wid="ekran" data-gen="3" data-sat="1" hidden>
+        <svg class="kw-ikon" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M20 8h24M20 56h24M22 8c0 14 20 14 20 24S22 42 22 56M42 8c0 14-20 14-20 24s20 10 20 24"
+                fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"
+                stroke-linejoin="round"/>
+        </svg>
+        <div class="kw-yazi">
+          <div class="kw-ad">Ekran süresi</div>
+          <div class="kw-alt" id="es-alt">&nbsp;</div>
+          <div class="es-cubuk" id="es-cubuk"></div>
+        </div>
+        <div class="cw-sag" id="es-sag"></div>
+      </section>
+      <!-- UYKU ZAMANLAYICI (3x1): 30/60/90; acik olan doluyor, ona tekrar
+           basmak kapatiyor. -->
+      <section class="klima-widget uyku-widget widget" id="uyku-widget"
+               data-wid="uyku" data-gen="3" data-sat="1" hidden>
+        <svg class="kw-ikon" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M40 10a22 22 0 1 0 14 34A18 18 0 0 1 40 10z" fill="none"
+                stroke="currentColor" stroke-width="4.5" stroke-linejoin="round"/>
+        </svg>
+        <div class="kw-yazi">
+          <div class="kw-ad">Uyku zamanlayıcı</div>
+          <div class="kw-alt" id="uz-alt">&nbsp;</div>
+        </div>
+        <div class="kw-kontrol">
+          <div class="kw-dugme sure-dugme odaklanir" data-is="uyku-30" data-dk="30">30</div>
+          <div class="kw-dugme sure-dugme odaklanir" data-is="uyku-60" data-dk="60">60</div>
+          <div class="kw-dugme sure-dugme odaklanir" data-is="uyku-90" data-dk="90">90</div>
+        </div>
+      </section>
+      <!-- FILM MODU (3x1): tek yuvarlak anahtar — sessiz anahtariyla ayni dil. -->
+      <section class="klima-widget film-widget widget" id="film-widget"
+               data-wid="film" data-gen="3" data-sat="1" hidden>
+        <svg class="kw-ikon" viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="8" y="22" width="48" height="34" rx="5" fill="none" stroke="currentColor" stroke-width="4.5"/>
+          <path d="M8 22l44-12 2 8M18 19l8 10M32 15l8 10" fill="none" stroke="currentColor"
+                stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="kw-yazi">
+          <div class="kw-ad">Film modu</div>
+          <div class="kw-alt" id="fm-alt">&nbsp;</div>
+        </div>
+        <div class="kw-kontrol">
+          <!-- iOS tarzi anahtar: acik/kapali bir DURUM, oynat dugmesi degil -->
+          <div class="anahtar odaklanir" id="fm-dugme" data-is="film"><span class="topuz"></span></div>
+        </div>
+      </section>
+      <section class="klima-widget cihaz-widget widget" id="camasir-widget"
+               data-wid="camasir" data-gen="3" data-sat="1" hidden>
+        <svg class="kw-ikon" id="cw-camasir-ikon" viewBox="0 0 64 64" aria-hidden="true"></svg>
+        <div class="kw-yazi"><div class="kw-ad">Çamaşır</div><div class="kw-alt" id="cw-camasir-alt">&nbsp;</div></div>
+        <div class="cw-sag" id="cw-camasir-sag"></div>
+      </section>
+      <section class="klima-widget cihaz-widget widget" id="buzdolabi-widget"
+               data-wid="buzdolabi" data-gen="3" data-sat="1" hidden>
+        <svg class="kw-ikon" id="cw-buzdolabi-ikon" viewBox="0 0 64 64" aria-hidden="true"></svg>
+        <div class="kw-yazi"><div class="kw-ad">Buzdolabı</div><div class="kw-alt" id="cw-buzdolabi-alt">&nbsp;</div></div>
+        <div class="cw-sag" id="cw-buzdolabi-sag"></div>
+      </section>
+      <section class="klima-widget cihaz-widget widget" id="bulasik-widget"
+               data-wid="bulasik" data-gen="3" data-sat="1" hidden>
+        <svg class="kw-ikon" id="cw-bulasik-ikon" viewBox="0 0 64 64" aria-hidden="true"></svg>
+        <div class="kw-yazi"><div class="kw-ad">Bulaşık</div><div class="kw-alt" id="cw-bulasik-alt">&nbsp;</div></div>
+        <div class="cw-sag" id="cw-bulasik-sag"></div>
+      </section>
+    </div>
+
+    <section class="gorunum" id="gorunum-ev-cihaz">
+      <h2 class="bolum-baslik">Cihazlar</h2>
+      <p class="cihaz-durum" id="cihaz-durum">Cihazlar okunuyor…</p>
+      <div class="cihazlar" id="cihazlar"></div>
+    </section>
+
+    <!-- AYARLAR: sekme degil; Denetim Merkezi panelinden aciliyor.
+         Liste TEK bir .odak-kart icinde cok satir — boylece yukari/asagi
+         satirlar arasinda, sag/sol satir icindeki dugmeler arasinda gezer
+         (Ev sayfasinin modeli oldugu gibi kullaniliyor). -->
+    <section class="gorunum" id="gorunum-ayarlar">
+      <h2 class="bolum-baslik">Ayarlar</h2>
+      <p class="ayar-aciklama" id="ayar-aciklama">
+        Dock'ta görünecek uygulamaları seç ve sırala.
+      </p>
+      <div class="ayarlar-liste" id="ayarlar-liste"></div>
+    </section>
+
+    <section class="gorunum" id="gorunum-uygulamalar">
+      <h2 class="bolum-baslik">Tüm Uygulamalar</h2>
+      <div class="izgara" id="izgara"></div>
+    </section>
+  </main>
+
+<!-- TRAFIK HARITASI: tam ekran; Yol durumu / Trafik widget'inda ENTER.
+     Dosemeler kok servisten (anahtar sayfaya inmiyor). -->
+<div class="harita" id="harita" hidden>
+  <div class="hr-katman" id="hr-taban"></div>
+  <div class="hr-katman" id="hr-akis"></div>
+  <svg class="hr-cizgi" id="hr-cizgi" width="1920" height="1080" aria-hidden="true"></svg>
+  <div class="hr-kart" id="hr-kart"></div>
+  <!-- Kontrol noktali gorunum: haritasiz, metro hatti gibi -->
+  <div class="hr-duraklar" id="hr-duraklar" hidden></div>
+  <div class="hr-gorunum" id="hr-gorunum"></div>
+  <div class="hr-lejant"><span><i class="l1"></i>Akıcı</span><span><i class="l2"></i>Yavaş</span><span><i class="l3"></i>Yoğun</span><span><i class="l4"></i>Durma</span></div>
+  <div class="hr-telif">© TomTom</div>
+</div>
+<script src="yapilandirma.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

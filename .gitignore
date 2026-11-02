@@ -1,0 +1,18 @@
+# Kisisel ayarlar — IP, MAC, TomTom anahtari
+ayarlar.yerel.sh
+# Kendi guzergah dosyaniz (ornek haric)
+guzergahlarim*.json
+# SSH / eslesme anahtarlari — asla
+*.key
+*.pem
+id_*
+*_ed25519
+*_ed25519.pub
+*_rsa
+*_rsa.pub
+# Uretilen paketler
+cikti/
+*.ipk
+# Sistem
+.DS_Store
+._*

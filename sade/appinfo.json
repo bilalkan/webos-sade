@@ -1,0 +1,21 @@
+{
+  "id": "com.bilal.sade",
+  "version": "2.19.1",
+  "vendor": "bilal",
+  "type": "web",
+  "main": "index.html",
+  "title": "Sade",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#e9eaec",
+  "iconColor": "#2b2d31",
+  "disableBackHistoryAPI": true,
+  "supportGIP": true,
+  "requiredPermissions": [
+    "applications",
+    "applications.launcher",
+    "home.connect",
+    "iot.connect",
+    "settings.read"
+  ]
+}
