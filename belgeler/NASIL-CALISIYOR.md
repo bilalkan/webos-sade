@@ -1,7 +1,7 @@
-# Nasıl çalışıyor — mekanizma notları
+# Nasıl çalışıyor: mekanizma notları
 
-Kurulum için gerekmez; bir şey bozulduğunda ya da değiştirmek
-istediğinizde gerekir.
+Kurulum için gerekmez; bir şey bozulduğunda ya da bir şeyi değiştirmek
+istediğinizde işe yarar.
 
 ## Kalıcı root
 
@@ -13,32 +13,32 @@ Kalıcılık tek bir numaraya dayanıyor:
 ```
 
 Firmware geliştirici modunu kapatırken `rm -rf .../devmode_enabled`
-çalıştırıyor. `-rf` dizini de siler — ama dizin olduğu sürece
-`/media/developer`'ı silen kontrol geçiyor. Dev Mode uygulaması TV'de
-kalırsa 50 saatlik oturum sayacı dolduğunda bu yolu siler, o yüzden
-uygulama kaldırılıyor.
+çalıştırıyor ve `-rf` dizini de siler. Ama yol dizin olduğu sürece
+`/media/developer`'ı silen kontrol geçiliyor. Dev Mode uygulaması TV'de
+kalırsa 50 saatlik oturum sayacı dolduğunda bu yolu siler; uygulama bu
+yüzden kaldırılıyor.
 
-`start-devmode.sh` imzalı ve **ona dokunulmuyor** — bu rehberin tamamı
-imza duvarına hiç çarpmadan ilerliyor. İmza doğrulaması `Verified OK`
-verdiği için autoroot o dosyayı değiştirme yoluna hiç girmiyor.
+`start-devmode.sh` imzalı ve **ona dokunulmuyor**; bu rehberin hiçbir adımı
+imzayı bozmuyor. İmza doğrulaması `Verified OK` verdiği için autoroot o
+dosyayı değiştirme yoluna hiç girmiyor.
 
-Boot zinciri:
+Açılış zinciri:
 ```
 start-devmode.sh (imzalı, stok)
   └→ /var/lib/webosbrew/startup.sh        (HBChannel kurdu)
-       └→ /var/lib/webosbrew/init.d/*     (run-parts, cold boot'ta)
+       └→ /var/lib/webosbrew/init.d/*     (run-parts, soğuk açılışta)
             └→ 50-sade → servis/autostart.sh
 ```
 
-`init.d` boot'ta ~45.9. saniyede çalışıyor. Daha erkene çekmek imzalı
-bölgeyi değiştirmek demek, yani mümkün değil.
+`init.d` açılışın ~45.9. saniyesinde çalışıyor. Daha erkene çekmek imzalı
+dosyaları değiştirmek demek, yani mümkün değil.
 
 ## HOME tuşu
 
 İki parça birlikte çalışıyor:
 
 **1. Tuşu yakalama.** Servis `/dev/input/event*` düğümlerini **salt-okunur**
-açıyor (grab etmiyor, yani LG'nin kendi okuması bozulmuyor) ve HOME kodunu
+açıyor (aygıtı sahiplenmiyor, yani LG'nin kendi okuması bozulmuyor) ve HOME kodunu
 bekliyor. Gördüğünde launcher'ı `applicationManager/launch` ile açıyor.
 
 `input_event` yapısı 32-bit ARM'de 16 bayt:
@@ -61,6 +61,12 @@ ve HOME tuşu hiçbir şey açmaz — GUVENLIK.md 4c'deki komut bunu düzeltiyor
 LG, HOME'u basıştan ~340 ms sonra **yeniden sahipleniyor**, bu yüzden servis
 bir basışa 3 kez tepki veriyor (`TEPKI_HAKKI = 3`).
 
+Bir uygulama kapanıp ön plan boşaldığında (örneğin AirPlay bitince) webOS
+HOME'a basılmadan kendi ana ekranını açıyor. Servis bunu da HOME basışı gibi
+ele alır: boşalmadan sonraki 3 saniye içinde gelen LG ekranının yerine Sade'yi
+açar (dakikada en fazla 3 kez). Sade'den LG Ana Ekran'a bilerek geçiş
+boşluktan geçmediği için etkilenmez.
+
 ## Devre kesici — neden var ve eşiği neden böyle
 
 Servis bir noktada `luna-send` çıktısını tampona ekleyip her yeni veri
@@ -71,7 +77,7 @@ tekrar tekrar eşleşiyor, her eşleşme yeni bir komut tetikliyordu:
 LG Home → Sade → LG Home → Sade → … → uygulama çöküyor
 ```
 
-Doğrusu tam JSON nesnelerini tampondan **söküp çıkarmak**
+Doğrusu, tamamlanan JSON nesnelerini tampondan **çıkarmak**
 (`onplan-ayristirici.js`, 8 birim test).
 
 Devre kesici eşiği (`tepki-mantigi.js`):
@@ -82,21 +88,20 @@ SUS_SURE   = 30000  ms        30 saniye sus
 ```
 Gerçek bir döngü **aynı milisaniyede** tekrar ediyor; normal kullanımda
 3 tepki ~340 ms arayla geliyor. Eşik bu ikisini ayırt ediyor. İlk denediğimiz
-"10 saniyede 2" eşiği normal kullanımı kesiyordu — 3 kez arka arkaya
+"10 saniyede 2" eşiği normal kullanımı kesiyordu: arka arkaya 3 kez
 basınca servis susuyordu.
 
 ## Quick Start+ neden gerekli
 
-`quickStartMode` kapalıyken TV beklemeden dönüşte **yeniden başlıyor**:
-servis ölüyor, ~50. saniyede yeniden ayağa kalkıyor, o arada HOME çalışmıyor.
-Ayrıca soğuk açılışta Magic Remote'un aygıt düğümünü devralma sorunu
-yaşanıyor.
+`quickStartMode` kapalıyken TV bekleme modundan dönerken **yeniden başlıyor**:
+servis kapanıyor, ~50. saniyede yeniden açılıyor, o arada HOME çalışmıyor.
+Ayrıca soğuk açılışta Magic Remote başka bir aygıt düğümüne geçebiliyor.
 
-Açıkken TV soğuk açılış yapmıyor, servis beklemede yaşıyor, HOME ilk
-andan çalışıyor.
+Açıkken TV soğuk açılış yapmıyor, servis beklemede çalışmaya devam ediyor
+ve HOME ilk andan çalışıyor.
 
-Ölçüm (tek seferlik, temiz değil — ilki boot'tan 190 sn sonra, ikincisi
-1404 sn sonra alındı):
+Ölçüm (tek seferlik ve temiz değil: ilki açılıştan 190 sn, ikincisi 1404 sn
+sonra alındı):
 
 ```
                   kapalı    açık
@@ -112,23 +117,23 @@ Bir gece dayanıklılık testi (23→24 Ekim):
 ```
 
 Duvar saati 11s44dk ilerlemişken uptime yalnızca 2s28dk arttı; aradaki
-~9s17dk beklemede geçti ve sayaca yazılmadı. Süreç uyutuluyor, bu yüzden
-log da yalnızca uyanık geçen süre kadar birikmiş.
+~9s17dk beklemede geçti ve sayaca yazılmadı. Süreç beklemede uyutuluyor; bu
+yüzden günlük de yalnızca uyanık geçen süre kadar birikmiş.
 
 Sürecin başlangıcı `/proc/<pid>/stat` 22. alanda **113 sn** (uptime
-cinsinden) — yani servisi boot süreci başlatmış, elle başlatılmamış.
+cinsinden); yani servisi açılış süreci başlatmış, elle başlatılmamış.
 
-**Çıkarım:** soğuk açılış olmadı, süreç hiç ölmedi. Dayanağı aynı pid'in
-12 saat boyunca korunması. Kesinleştirmek isterseniz tek bir komut yeter —
-log'un ilk satırı beklemeden *önceki* bir zaman damgası taşıyorsa süreç
-(ve `/tmp`) gerçekten hayatta kalmıştır:
+**Çıkarım:** soğuk açılış olmadı, süreç hiç kapanmadı. Dayanağı, aynı pid'in
+12 saat boyunca korunması. Kesinleştirmek için tek komut yeter: günlüğün ilk
+satırı beklemeden *önceki* bir zaman damgası taşıyorsa süreç (ve `/tmp`)
+gerçekten ayakta kalmıştır:
 
 ```bash
 bash araclar/root-ssh.sh 'head -2 /tmp/sade-svc.log'
 ```
 
-`/tmp` tmpfs olduğu için yeniden başlatmada silinir; eski damga görünürse
-tartışma biter.
+`/tmp` bellekte durduğu için yeniden başlatmada silinir; eski damga
+görünürse soru kapanır.
 
 ## Hava durumu
 
@@ -138,8 +143,7 @@ ecmwf_ifs025 · icon_seamless · meteofrance_seamless · ukmo_seamless · gfs_se
 ```
 
 Model seçimi ve düzeltme sabiti denendi ve **kaldırıldı**. Sebebi: 10-20
-ölçüm noktasına bakarak model alt kümesi seçmek aşırı uyum (overfitting)
-üretiyor. Hedef konumu şehir merkezinden mahalleye çevirdiğimizde sistematik
+ölçüme bakarak model seçmek aşırı uyum (overfitting) üretiyor. Hedef konumu şehir merkezinden mahalleye çevirdiğimizde sistematik
 sapma kendiliğinden sıfırlandı ve daha önce "en iyi" bulunan sabitlerin
 **işareti bile değişti**. Beş modelin ortalaması her hedefte her tek
 modelden iyiydi.
@@ -151,10 +155,10 @@ içinden değiştirilebilir.
 
 ## Gün dönümü
 
-`gunDegistiMi()` 20 saniyede bir tarihi kontrol ediyor. Beklemeden dönüşte
-de çalışıyor, yani TV bir gece kapalı kalıp açıldığında tarih/hava kartları
-kendini yeniliyor. Gece yarısı geçişi `setTimeout` ile hesaplanmıyor —
-beklemede duran bir zamanlayıcıya güvenilmiyor.
+`gunDegistiMi()` 20 saniyede bir tarihi kontrol ediyor. Bekleme modundan
+dönüşte de çalışıyor; TV bir gece kapalı kalıp açıldığında tarih ve hava
+kartları kendini yeniliyor. Gece yarısı geçişi `setTimeout` ile
+hesaplanmıyor, çünkü beklemede duran bir zamanlayıcıya güvenilemez.
 
 ## Zaten önde olan uygulamayı tekrar açmayın
 
@@ -168,7 +172,7 @@ beklemede duran bir zamanlayıcıya güvenilmiyor.
 18:37:03.6  on plan -> com.bilal.sade      ← 31 sn sonra kendine geldi
 ```
 
-Sebep: on planda **çalışan** bir web uygulamasını yeniden
+Sebep: ön planda **çalışan** bir web uygulamasını yeniden
 `applicationManager/launch` ile açmak. WAM uygulamayı yeniden başlatıyor,
 WebView kilitleniyor, ekran boş kalıyor.
 
@@ -177,13 +181,13 @@ Aynı tuzağı üç yer tetikliyordu:
 | Tetikleyici | Ne zaman |
 |---|---|
 | HOME tuşu | Sade zaten öndeyken basılırsa |
-| Uyanma algılama | 2,5 sn arayla 3 kez — Quick Start+ ile Sade zaten önde olduğu için **her uyanmada** |
+| Uyanma algılama | 2,5 sn arayla 3 kez; Quick Start+ ile Sade zaten önde olduğu için **her uyanmada** |
 | LG ana ekranına tepki | Burada Sade önde değil, sorunsuz |
 
 Kural `servis/acilma-karari.js` içinde, 11 birim testi var: ön planı
 **güvenilir biçimde** biliyorsak ve zaten bizim uygulamamızsa dokunma.
-Ön plan aboneliği düşmüşse eski davranışa dönülüyor — HOME'un hiç
-çalışmamasındansa fazladan bir `launch` yeğ.
+Ön plan aboneliği düşmüşse eski davranışa dönülüyor: HOME'un hiç
+çalışmamasındansa fazladan bir `launch` yeğdir.
 
 ## Ayarlar: odağa göre açıklama
 
@@ -191,12 +195,12 @@ Fikir [ammar027/lumen-webos](https://github.com/ammar027/lumen-webos)'un ayarlar
 ekranından alındı (kendisi Preact + Vite; biz yalnızca fikri aldık, kodu değil).
 
 Satırın ne yaptığını satırın içine sıkıştırmak yerine başlığın altındaki tek
-satırda anlatıyoruz. Satırlar temiz kalıyor, açıklamaya da bol yer kalıyor.
+satırda anlatıyoruz. Satırlar sade kalıyor, açıklamaya da yer kalıyor.
 
-Bizde özellikle bir şeyi çözdü: bir uygulama dock'ta **değilken** ok düğmeleri
-görünür ama etkisiz bırakılıyor — satırların sütun sayısı değişmesin ve odak
-satır değiştirince kaymasın diye. Kullanıcı bunun neden tıklanmadığını
-bilemiyordu. Artık yazıyor:
+Bizde özellikle bir sorunu çözdü: bir uygulama dock'ta **değilken** ok
+düğmeleri görünür ama etkisiz kalıyor (sütun sayısı değişmesin ve odak
+kaymasın diye). Kullanıcı düğmenin neden çalışmadığını bilemiyordu. Artık
+yazıyor:
 
 ```
 sol ok, 1. sırada (soluk)  →  "YouTube zaten ilk sırada."
@@ -210,16 +214,16 @@ Uygulaması ucuz: `#ayar-aciklama` elemanı zaten vardı (sabit metinliydi),
 `odakCiz()` de odaklanan elemanı zaten hesaplıyordu. Tek yapılan, o elemandan
 `data-is` / `data-app` okuyup metni üretmek (`ayarAciklamasi()`).
 
-**Alınmayan fikirler ve nedenleri:** Preact/Vite bileşen yapısı (biz build'siz
-çalışıyoruz), liste sanallaştırma (bizim liste onlarca satır, binlerce değil),
-`mask-image` ile kenar soldurma (lumen'in kendi yamaları bunu geri almış —
-Chromium'u listeyi her karede ekran dışı yüzeye çizmeye zorluyor).
+**Alınmayan fikirler ve nedenleri:** Preact/Vite bileşen yapısı (biz derleme
+adımı olmadan çalışıyoruz), liste sanallaştırma (listemiz onlarca satır,
+binlerce değil), `mask-image` ile kenar soldurma (lumen'in kendisi bunu geri
+almış; Chromium'u listeyi her karede ekran dışında çizmeye zorluyor).
 
 ## HOME tuşu: LG ile yarışmak yerine filtreyi kapatmak
 
 İlk yöntemimiz LG ile **yarışıyordu**: HOME'a basılınca hem biz hem LG
 uygulama açıyorduk, kim kazanacağı zamanlamaya bağlıydı. Launcher zaten
-öndeyken kazanan olmuyordu — LG ekranı gelip gidiyor, uygulama çöküyordu.
+öndeyken kazanan olmuyordu: LG ekranı gelip gidiyor, uygulama çöküyordu.
 
 Doğru mekanizma LG'nin **kendi kaynağında** bulundu (webOS 6.5.3):
 
@@ -242,8 +246,8 @@ property bool disableHome: Settings.subscribe("com.webos.service.config",
     "getConfigs", {"configNames":["com.webos.surfacemanager.disableHome"]})
 ```
 
-Yani ayar **configd**'de ve **abonelikle** okunuyor — değişiklik anında
-etki ediyor, reboot gerekmiyor:
+Yani ayar **configd**'de duruyor ve **abonelikle** okunuyor; değişiklik
+anında etki ediyor, yeniden başlatma gerekmiyor:
 
 ```bash
 luna-send -n 1 -f luna://com.webos.service.config/setConfigs \
@@ -261,7 +265,7 @@ Yarış ortadan kalkıyor.
 |---|---|
 | Servis çıkış kancası | Düzgün kapanışta (SIGTERM) `false` yazıyor |
 | `home-bekci.sh` | Servis **sert** çökerse 60 sn içinde `false` yazıp çıkıyor |
-| configd'nin kendisi | Değer `configd_db.json`'da **yok**, yalnızca bellekte — reboot sıfırlıyor |
+| configd'nin kendisi | Değer `configd_db.json`'da **yok**, yalnızca bellekte; yeniden başlatma sıfırlıyor |
 
 Üçüncüsü en önemlisi: ayar kalıcı olmadığı için en kötü senaryoda bir
 yeniden başlatma HOME'u LG'ye geri veriyor.
@@ -275,11 +279,11 @@ setSystemSettings '{"category":"general","settings":{"defaultApps":{"home":"<app
 ```
 
 webOS 6.5.3'te **denendi ve çalışmadı.** Yazma `returnValue: true` dönüyor,
-okuma değeri doğruluyor, `/usr/sbin/sam` anahtara canlı abone — ama HOME
+okuma değeri doğruluyor, `/usr/sbin/sam` anahtara canlı abone; ama HOME
 tuşunun davranışı değişmiyor. Sebebi yukarıda: `systemUi.js` içinde
 `HOME_APP_ID` sabit kodlu, ayardan okunmuyor.
 
-## Açılışta doğrudan launcher — `eim addDevice`
+## Açılışta doğrudan launcher: `eim addDevice`
 
 TV'yi kendi ana ekranınızla açmak mümkün, ama yolu sezgisel değil.
 
@@ -289,7 +293,7 @@ COMP tiplerini kabul ediyor. Bir uygulama giriş kaynağı değil, bu yüzden
 oraya yazmak çalışmıyor.
 
 **Doğru yol:** launcher'ı bir giriş olarak **kaydettirmek.** TV'de zaten her
-girişin bir `appId`'si var — HDMI 1 aslında `com.webos.app.hdmi1` adlı bir
+girişin bir `appId`'si var; HDMI 1 aslında `com.webos.app.hdmi1` adlı bir
 uygulama.
 
 ```bash
@@ -299,7 +303,7 @@ luna-send -n 1 -f luna://com.webos.service.eim/addDevice \
 ```
 
 Sonuç: `id = MVPD_IP-com.bilal.sade` adlı bir giriş. INPUT menüsünde
-görünüyor, seçilince açılıyor, ve TV onu son giriş olarak hatırlıyor.
+görünüyor, seçilince açılıyor ve TV onu son giriş olarak hatırlıyor.
 
 ### Şart: `appinfo.json` içinde `supportGIP`
 
@@ -330,20 +334,20 @@ addDevice {}  →  {"errorCode":"EIM.101","errorText":"No match field: [pigImage
 Zorunlu olanlar yalnızca `pigImage` ve `appId`. `mvpdIcon` boş geçilse bile
 servis `appinfo.json`'dan ikonları kendisi dolduruyor.
 
-### Geri alma — kullanmadan önce kanıtlandı
+### Geri alma: kullanmadan önce denendi
 
 ```bash
 luna-send -n 1 -f luna://com.webos.service.eim/deleteDevice '{"appId":"com.bilal.sade"}'
 ```
 
 Sil → `getAllInputStatus` ile yok olduğunu gör → tekrar ekle → geri geldiğini
-gör. Bu tur **eklemeden önce** yapıldı; geri dönüşü doğrulanmamış bir
-değişikliği kalıcılaştırmak doğru değil.
+gör. Bu deneme **kalıcı eklemeden önce** yapıldı; geri dönüşü doğrulanmamış
+bir değişikliği kalıcı yapmak doğru değil.
 
 ### Kalıcılık
 
-Kayıt `/var/lib/eim/eim_mvpd_db.json` dosyasına yazılıyor, yani reboot'u
-aşıyor. Soğuk açılışta doğrulandı: `/tmp` silinmişken giriş kaydı ve
+Kayıt `/var/lib/eim/eim_mvpd_db.json` dosyasına yazılıyor, yani yeniden
+başlatmada kaybolmuyor. Soğuk açılışta doğrulandı: `/tmp` silinmişken giriş kaydı ve
 `lastinput` yerindeydi, ön planda launcher vardı.
 
 ### ⚠️ İki tuzak
@@ -352,11 +356,11 @@ aşıyor. Soğuk açılışta doğrulandı: `/tmp` silinmişken giriş kaydı ve
 `supportGIP` yokken `true` döndü ve ikisinde de hiçbir şey olmadı. Her adımı
 `getAllInputStatus` ile geri okuyarak doğrulayın.
 
-**2. `setLastInput` bir YAZICI.** `addDevice`'ın şemasını "eksik parametreyle
-çağır, servis söylesin" yöntemiyle keşfetmek güvenliydi (boş değeri yok
-sayıyor). Aynı yöntemi `setLastInput`'ta denemek `lastinput`'u bozdu —
-`type` ve `appId` boşaldı. Yazıcı metotlarda parametreyi `strings` ile
-ikiliden okuyun, deneme yanılma yapmayın. Ve önce yedek alın:
+**2. `setLastInput` yazan bir metot.** `addDevice`'ın parametrelerini "eksik
+parametreyle çağır, servis söylesin" yöntemiyle bulmak güvenliydi (boş değeri
+yok sayıyor). Aynı yöntemi `setLastInput`'ta denemek `lastinput`'u bozdu:
+`type` ve `appId` boşaldı. Yazan metotlarda parametreleri `strings` ile
+ikili dosyadan okuyun, deneme yanılma yapmayın. Önce de yedek alın:
 
 ```bash
 bash araclar/root-ssh.sh 'cat /var/lib/eim/lastinput' > lastinput-yedek.json

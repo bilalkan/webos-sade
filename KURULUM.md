@@ -1,7 +1,7 @@
 # Kurulum
 
 Tahmini süre 2–3 saat. Acele etmeyin, her adımın sonundaki **kontrolü**
-çalıştırın. Bir kontrol patlarsa **durun** — sonraki adım durumu kötüleştirir.
+çalıştırın. Bir kontrol başarısız olursa **durun**; sonraki adım durumu kötüleştirir.
 
 Önce [GUVENLIK.md](GUVENLIK.md) okunmalı.
 
@@ -12,16 +12,15 @@ Bu belge **Sade 2.19.1** içindir (sürüm: `sade/appinfo.json`).
 | Durumunuz | Yapılacaklar |
 |---|---|
 | TV'de root yok, sıfırdan başlıyorsunuz | Aşağıdaki **1–9** adımlarını sırayla |
-| TV zaten root'lu, root SSH çalışıyor | **Kısa yol** (hemen altta) |
+| TV zaten rootlu, root SSH çalışıyor | **Kısa yol** (hemen altta) |
 | Sade'nin eski bir sürümü zaten kurulu | En alttaki **Güncelleme** bölümü |
 
-Trafik ve güzergâh widget'ları isteğe bağlı; isterseniz kurulumdan sonra
-**10. adım**.
+Trafik ve güzergâh widget'ları isteğe bağlıdır: kurulumdan sonra **10. adım**.
 
-### Kısa yol — TV zaten root'lu
+### Kısa yol — TV zaten rootlu
 
 Root SSH anahtarınız `~/.ssh/lgtv_root_ed25519` değilse `ayarlar.yerel.sh`
-içinde `ROOT_KEY`'i yazın.
+içine `ROOT_KEY` satırını ekleyin.
 
 ```bash
 cp ayarlar.yerel.ornek.sh ayarlar.yerel.sh
@@ -34,8 +33,8 @@ bash araclar/kur.sh cikti/com.bilal.sade_*_all.ipk   # "OK — kurulu: 2.19.1"
 
 Bu kadarıyla Sade uygulama listesinde görünür ve elle açılır. HOME
 tuşunun Sade'yi açması için **6, 7 ve 8. adımlar** gerekir (tuş kodu,
-servis, Quick Start+). Uygulama ikonlarının TV'den gelmesi ve klima/TV
-widget'ları da 7. adımdaki servise bağlı.
+servis, Quick Start+). Uygulama simgelerinin TV'den gelmesi ve klima/TV
+widget'ları da 7. adımdaki servise bağlıdır.
 
 ## Gerekenler
 
@@ -55,28 +54,28 @@ widget'ları da 7. adımdaki servise bağlı.
 9    Alexa/spor alarmı gizle
 ```
 
-Launcher'ı **5. adımdan önce** kuruyoruz. Sebebi: Dev Mode gidince eski
-kurulum yolu kapanır, yerine root SSH gelir. Launcher'ın çalıştığını daha
-kolay yoldan görmüş olmak, sonra iki kapının arasında kalmamak demek.
+Launcher'ı **5. adımdan önce** kuruyoruz: Dev Mode gidince bu kolay kurulum
+yolu kapanır, yerine root SSH gelir. Launcher'ın çalıştığını önceden görmek,
+sorun çıkarsa hangi yarıda olduğunu bilmek demektir.
 
 ---
 
 ## 1 — Ön kontroller (TV'ye hiç dokunmadan)
 
-### 1a. TV'niz root'lanabilir mi? — Dev Mode'u SİLMEDEN ÖNCE bakın
+### 1a. TV'niz rootlanabilir mi? Dev Mode'u SİLMEDEN ÖNCE bakın
 
 5. adımda Dev Mode uygulamasını kaldırmak **geri dönüşsüz**. Ondan önce
-root zincirinin sizin TV'nizde çalışma ihtimalini öğrenin, yoksa silip
-sonra root alamadan kalırsınız.
+root yönteminin TV'nizde çalışıp çalışmayacağını öğrenin; yoksa Dev Mode'u
+silip root alamadan kalabilirsiniz.
 
 - **webOS sürümü:** Ayarlar → Destek → TV Hakkında. Bu rehber **webOS 6.x**
-  içindir. Başka ana sürümde (5, 7, 11…) root exploit'i farklıdır; aşağısı
-  sizin için geçerli değil.
+  içindir. Başka ana sürümde (5, 7, 11…) root yöntemi farklıdır; bu rehberin
+  geri kalanı sizin için geçerli değildir.
 - **Rootlanabilirlik:** [cani.rootmy.tv](https://cani.rootmy.tv/) TV
   modelinize ve firmware'inize göre bilinen bir yöntem olup olmadığını söyler.
 - **Exploit uyumu:** root [slopbro](https://github.com/throwaway96/slopbro)
-  ile alınıyor; kendi README'sinde hangi sürüm/firmware'lerde çalıştığı
-  (ve yamalanmış sürümler) yazıyor. Firmware'iniz oradaki aralığın dışındaysa
+  ile alınıyor. Hangi sürüm ve firmware'lerde çalıştığına, hangilerinde
+  yamalandığına onun README'sinden ve issue'larından bakın. Firmware'iniz oradaki aralığın dışındaysa
   **5. adıma hiç başlamayın.**
 
 Bizde çalışan donanım: OLED55B16LA · webOS 6.5.3 · firmware 03.53.45.
@@ -85,8 +84,8 @@ Bizde çalışan donanım: OLED55B16LA · webOS 6.5.3 · firmware 03.53.45.
 
 TV'de **LG Content Store**'dan *Developer Mode* uygulamasını kurun (LG
 hesabıyla giriş gerekir), açın, **Dev Mode'u ON** yapıp TV'yi yeniden
-başlatın. Uygulamayı yeniden açık tutun — aşağıda ekrandaki parolayı
-kullanacaksınız.
+başlatın. Sonra uygulamayı tekrar açın ve açık bırakın; ekranındaki parola
+aşağıda gerekecek.
 
 Mac/Linux'ta webOS CLI'yi kurup TV'yi tanıtın:
 
@@ -97,8 +96,7 @@ ares-setup-device        # add → ad: tv, IP: <TV_IP>, port: 9922,
 ares-setup-device --list
 ```
 
-SSH anahtarını TV'den **siz çekiyorsunuz** (anahtar TV'de üretiliyor, Mac'te
-siz üretmiyorsunuz):
+SSH anahtarı TV'de üretilir, siz onu TV'den çekersiniz:
 
 ```bash
 ares-novacom --device tv --getkey
@@ -108,14 +106,14 @@ ares-device --system-info --device tv   # model, SDK sürümü dönerse bağlant
 ```
 
 > Dev Mode oturumu süreli (uygulamada *Remain Session*). Bitmeden **EXTEND**
-> ile uzatın; ağ bağlıyken yapın. Oturum biterse ya da TV ağsızken 10 kez
-> yeniden başlarsa Dev Mode kapanır ve kurduğunuz test uygulamaları silinir —
-> bu yüzden 5. adıma kadar fazla oyalanmayın.
+> ile uzatın (TV ağa bağlıyken). Oturum biterse ya da TV ağsızken 10 kez
+> yeniden başlarsa Dev Mode kapanır ve kurduğunuz test uygulamaları silinir.
+> 5. adıma kadar fazla beklemeyin.
 
 ### 1c. Üç ön kontrol
 
-`ares-shell` ile TV'de komut çalıştırıp bakın (doğrudan `ssh -p 9922
-prisoner@<TV_IP>` de olur, anahtar `ares-novacom` ile yüklendiyse):
+TV'de `ares-shell` ile komut çalıştırın (anahtarı çektiyseniz
+`ssh -p 9922 prisoner@<TV_IP>` de olur):
 
 ```bash
 # a) devmode_enabled şu an DOSYA olmalı (root sonrası dizine dönecek)
@@ -133,7 +131,7 @@ ares-shell -d tv -r 'ls /var/preferences/com.webos.applicationManager/blockedApp
 ```
 
 > **`Verified OK` görmüyorsanız DURUN.** O zaman kalıcılık yöntemi
-> değişiyor ve bu rehber geçerli değil.
+> farklıdır ve bu rehber geçerli değildir.
 
 ## 2 — Ayarları yazın
 
@@ -143,26 +141,26 @@ nano ayarlar.yerel.sh       # TV_IP ve TV_MAC'i yazın
 nano sade/yapilandirma.js   # enlem / boylam / şehir
 ```
 
-Kişisel değerler `ayarlar.yerel.sh`'a gider. Bu dosya `.gitignore`'da, git'e
-ve paylaştığınız pakete girmez. `ayarlar.sh` varsayılanları ve
-açıklamaları taşıyor; oradaki bir değeri değiştirmek isterseniz satırı
-yerel dosyaya kopyalayın.
+Kişisel değerler `ayarlar.yerel.sh`'a gider. Bu dosya `.gitignore`'da olduğu için git'e
+ve paylaştığınız pakete girmez. `ayarlar.sh` varsayılanları ve açıklamaları
+taşır; oradaki bir değeri değiştirmek isterseniz satırı yerel dosyaya
+kopyalayın.
 
-Geri kalanı **isteğe bağlı** ve varsayılanları güvenli:
+Geri kalanı **isteğe bağlıdır**, varsayılanlar güvenlidir:
 
-- `yapilandirma.js` — ana ekranın ilk yerleşimi, uygulama listesi, dock,
+- `yapilandirma.js`: ana ekranın ilk yerleşimi, uygulama listesi, dock,
   tema. Boş bırakırsanız Sade TV'de yüklü uygulamalardan ve evinizdeki LG
   cihazlarından kendisi kurar. Evde klima yoksa klimanın yerine ekran süresi
   gelir; hiçbir şey boş satır bırakmaz.
-- `ayarlar.sh`'taki `ONYUKLEME_KAPALI`, `SUREKLI_KAPAT`, `KAPATMA_DISI` —
+- `ayarlar.sh`'taki `ONYUKLEME_KAPALI`, `SUREKLI_KAPAT`, `KAPATMA_DISI`:
   servisin TV'ye ne kadar karışacağı. Varsayılan: **hiçbir şeye dokunmaz.**
   Önyüklemeyi kapatmak RAM kazandırır ama uygulama ilk açılışta biraz geç
   gelir; HDMI girişlerinden yalnızca boş olanları yazın.
 
-Konum için **mahalle seviyesinde** koordinat kullanın, şehir merkezi değil.
-Bizde sahil ile iç kesim arasındaki gece sıcaklığı farkı 1 dereceydi ve
-şehir merkezi koordinatı sürekli sapma veriyordu. [openstreetmap.org](https://www.openstreetmap.org)
-üzerinde evinize sağ tıklayıp "show address" ile alabilirsiniz.
+Konum için şehir merkezi değil **mahalle düzeyinde** koordinat kullanın.
+Bizde sahil ile iç kesim arasında gece 1 derece fark vardı ve şehir merkezi
+koordinatı sürekli sapma veriyordu. Koordinatı [openstreetmap.org](https://www.openstreetmap.org)'da
+evinize sağ tıklayıp "Show address" ile alabilirsiniz.
 
 ## 3 — Yedek alın
 
@@ -170,9 +168,9 @@ Bizde sahil ile iç kesim arasındaki gece sıcaklığı farkı 1 dereceydi ve
 mkdir -p ~/lgtv-yedek && cd ~/lgtv-yedek
 ssh-keygen -t ed25519 -f ~/.ssh/lgtv_root_ed25519 -N ''   # root anahtarı
 
-# TV'den yedeklenecekler. Her kopya için başarılı/başarısız yazdırır —
-# bir dosya 'prisoner' kullanıcısına kapalıysa onu görürsünüz, sessizce
-# atlanmaz. blockedAppList önemli olan; lastinput her TV'de okunamayabilir.
+# TV'den yedeklenecekler. Her dosya için sonucu yazar; 'prisoner'
+# kullanıcısının okuyamadığı dosya sessizce atlanmaz. Önemli olan
+# blockedAppList; lastinput her TV'de okunamayabilir.
 for f in /var/preferences/com.webos.applicationManager/blockedAppList \
          /var/lib/eim/lastinput ; do
   if ares-shell -d tv -r "cat \"$f\" >/dev/null 2>&1 || ls \"$f\" >/dev/null 2>&1"; then
@@ -182,8 +180,8 @@ for f in /var/preferences/com.webos.applicationManager/blockedAppList \
   fi
 done
 
-# Bu paketin kendisini de yedeğe koyun (ayarlarınız ve yapilandirma.js ile).
-# <paket-klasörü> = webos-sade'yi klonladığınız/çıkardığınız dizin.
+# Paketi de (ayarlarınız ve yapilandirma.js ile) yedeğe koyun.
+# <paket-klasörü>: webos-sade'yi klonladığınız klasör.
 cp -r <paket-klasörü> ./sade-paketi
 ls -R
 ```
@@ -195,19 +193,18 @@ bash araclar/paketle.sh                    # .ipk üretir, ares gerektirmez
 ares-install -d tv cikti/com.bilal.sade_*.ipk   # tv: 1b'de tanıttığınız cihaz
 ```
 
-`paketle.sh` paketi `ares-package` olmadan üretiyor, çünkü bazı ares
-sürümleri "isDate is not a function" ile çöküyor ve sizi daha ilk adımda
-durduruyor. Ürettiği `.ipk`'nın iç ağacı ve ar çerçevelemesi `ares-package`
-çıktısıyla **birebir aynı** (karşılaştırıldı). ares kuruluysa onu da
+`paketle.sh` paketi `ares-package` olmadan üretir, çünkü bazı ares sürümleri
+"isDate is not a function" hatasıyla çöküyor. Ürettiği `.ipk`, `ares-package`
+çıktısıyla **birebir aynıdır** (karşılaştırıldı). ares kuruluysa onu da
 kullanabilirsiniz: `ares-package sade -o cikti`
 
-> **Kontrol:** TV'nin uygulama listesinde "Sade" görünüyor. Açın. Hava
-> durumu ve saat geliyor, kumanda okları ile dock'ta gezinebiliyorsunuz.
-> Buraya kadar hiçbir geri dönüşsüz şey yapmadınız.
+> **Kontrol:** TV'nin uygulama listesinde "Sade" görünmeli. Açın: hava
+> durumu ve saat gelmeli, kumanda oklarıyla dock'ta gezinebilmelisiniz.
+> Buraya kadar geri dönüşü olmayan hiçbir şey yapmadınız.
 
-`ares-install` "isDate is not a function" ile çökerse ares sürümü bozuk —
-5. adımdan sonra `araclar/kur.sh` bu işi root üzerinden yapacak, şimdilik
-launcher'ı atlayıp devam edebilirsiniz.
+`ares-install` "isDate is not a function" ile çökerse ares sürümü bozuktur.
+Launcher'ı şimdilik atlayıp devam edebilirsiniz; 5. adımdan sonra
+`araclar/kur.sh` onu root üzerinden kurar.
 
 ---
 
@@ -217,13 +214,13 @@ launcher'ı atlayıp devam edebilirsiniz.
 
 TV'nin uygulama listesinden silin. **Root'tan önce.**
 
-Sebebi: Dev Mode servisi 50 saatlik oturum sayacını yönetiyor ve oturum
-bitince `rm -rf /var/luna/preferences/devmode_enabled` yapıyor. Kalıcılık
-tam o yolun **dizin** olmasına dayanıyor; `-rf` dizini de siler. Uygulama
-TV'de kalırsa kalıcılığı geri alabilecek tek bileşen o oluyor, ve dizin
-gidince sonraki açılış `/media/developer`'ı siler — launcher'la birlikte.
+Sebebi: Dev Mode servisi 50 saatlik oturum sayacını yönetir ve oturum
+bitince `rm -rf /var/luna/preferences/devmode_enabled` çalıştırır. Kalıcılık
+tam da bu yolun **dizin** olmasına dayanır; `-rf` dizini de siler. Uygulama
+TV'de kalırsa kalıcılığı bozabilecek tek bileşen o olur. Dizin silinirse
+sonraki açılışta `/media/developer` da launcher'la birlikte silinir.
 
-Exploit'in yazarı da aynısını söylüyor: *"Do not install the LG Dev Mode
+slopbro'nun yazarı da aynı uyarıyı yapıyor: *"Do not install the LG Dev Mode
 app while rooted."*
 
 > **Kontrol:** `nc -z <TV_IP> 9922` artık başarısız (reboot sonrası kesin).
@@ -232,13 +229,13 @@ app while rooted."*
 
 Ayrı belgede, adım adım: **[belgeler/ROOT.md](belgeler/ROOT.md)**.
 
-Özeti: slopbro iki kez çalışıyor. Önce kendi `autoroot.sh`'ıyla (root +
+Özetle slopbro iki kez çalışır. Önce kendi `autoroot.sh`'ıyla (root ve
 Homebrew Channel; sonunda **"Don't reboot"**), sonra bu paketin
-`araclar/root/kalicilik.sh`'ıyla (sizin SSH anahtarınız, sshd, güncelleme
-bloğu, `/autostart` kaydı). Sonunda `araclar/root/dogrula.sh` kapısı,
-reboot ve tekrar kapı.
+`araclar/root/kalicilik.sh`'ıyla (SSH anahtarınız, sshd, güncelleme bloğu,
+`/autostart` kaydı). Ardından `araclar/root/dogrula.sh` kontrolü, yeniden
+başlatma ve tekrar kontrol.
 
-> **Kapı geçmeden 6. adıma geçmeyin.**
+> **Kontrol geçmeden 6. adıma geçmeyin.**
 
 Launcher'ı 4. adımda kuramadıysanız şimdi kurun:
 ```bash
@@ -249,7 +246,8 @@ bash araclar/paketle.sh && bash araclar/kur.sh cikti/com.bilal.sade_*.ipk
 
 ## 6 — HOME tuş kodunuzu ölçün
 
-Bizde **773**, ama kumandaya göre değişebilir. Ölçün:
+Bizde **773** çıktı, ama kumandaya göre değişebilir. Komutu çalıştırın ve
+20 saniye içinde kumandadan HOME tuşuna basın:
 
 ```bash
 bash araclar/root-ssh.sh '
@@ -261,13 +259,13 @@ for d in /dev/input/event*; do
       var t=b.readUInt16LE(8), c=b.readUInt16LE(10), v=b.readInt32LE(12);
       if(t===1&&v===1) console.log(\"$d kod=\"+c);
     }catch(e){} },50);
-  " &
+  " & P="$P $!"
 done
-sleep 20; kill %1 2>/dev/null' &
-# 20 saniye içinde kumandadan HOME tuşuna basın
+sleep 20; kill $P 2>/dev/null'
 ```
 
-Çıkan kodu `ayarlar.yerel.sh`'a `HOME_KODU=...` olarak yazın.
+Çıkan kodu `ayarlar.yerel.sh`'a `HOME_KODU=...` olarak yazın. Komut 20 saniye
+sonra kendi başlattığı süreçleri kapatır.
 
 > `type@8 code@10 value@12` ofsetleri **32-bit ARM** için. TV'niz 64-bit ise
 > `input_event` yapısı 24 bayt ve ofsetler kayar.
@@ -279,17 +277,16 @@ for t in servis/test/*.js; do node "$t" || break; done
 bash araclar/servis-kur.sh
 ```
 
-Testler TV olmadan çalışır ve **hepsi geçmeli**. `servis-kur.sh`
-ayarlardan `servis-ayar.json`'u üretir ve ekrana basar; kurmadan önce
-okuyun. Geçmezse kurmayın —
-bu testler bizde uygulamayı çökerten bir sonsuz döngüyü yakalamak için
-yazıldı (bölüm "Neden bu testler var", aşağıda).
+Testler TV olmadan çalışır ve **hepsi geçmelidir**; geçmezse kurmayın. Bu
+testler bizde uygulamayı çökerten bir sonsuz döngüyü yakalamak için yazıldı
+(aşağıda "Neden bu testler var"). `servis-kur.sh` ayarlardan
+`servis-ayar.json`'u üretip ekrana basar; kurmadan önce okuyun.
 
 > **Kontrol:** HOME tuşuna **bir kez** basın. Sade açılmalı.
-> Bir daha basın, bir daha açmalı. LG Home ile Sade arasında gidip gelme
-> olursa **hemen** `pkill -f "node service.js"` yapın ve bize yazın.
+> Tekrar basın, yine açılmalı. LG Home ile Sade arasında gidip gelme olursa
+> **hemen** `pkill -f "node service.js"` çalıştırın ve bir issue açın.
 
-## 8 — Quick Start+ açın — HOME tuşunun asıl çözümü bu
+## 8 — Quick Start+'ı açın (HOME tuşu için şart)
 
 ```bash
 bash araclar/root-ssh.sh 'luna-send -n 1 -f \
@@ -297,22 +294,22 @@ bash araclar/root-ssh.sh 'luna-send -n 1 -f \
   "{\"category\":\"option\",\"settings\":{\"quickStartMode\":\"on\"}}"'
 ```
 
-Bu ayar kapalıyken TV beklemeden dönüşte **yeniden başlıyor**: servis ölüyor,
-yeniden ~50. saniyede ayağa kalkıyor, o arada HOME çalışmıyor. Açıkken TV
-hiç soğuk açılış yapmıyor, servis beklemede hayatta kalıyor, HOME ilk andan
-çalışıyor.
+Bu ayar kapalıyken TV bekleme modundan dönerken **yeniden başlar**: servis
+kapanır, ~50. saniyede yeniden açılır, o arada HOME çalışmaz. Açıkken TV
+soğuk açılış yapmaz, servis beklemede de çalışmaya devam eder ve HOME ilk
+andan çalışır.
 
-Bizde bir gece (~9 saat bekleme) tuttu — servis aynı pid ile sabaha çıktı.
-Bedeli: ölçümümüzde ~8 MB daha az boş RAM, swap kullanımı 97 → 156 MB.
-Tek ölçüm, kesin konuşmuyoruz.
+Bizde bir gecelik (~9 saat) beklemede servis aynı süreç numarasıyla sabaha
+çıktı. Bedeli, tek ölçümümüzde ~8 MB daha az boş RAM ve 97 MB'tan 156 MB'a
+çıkan takas kullanımıydı.
 
 TV menüsünden de açılabilir: Ayarlar → Genel → Enerji Tasarrufu →
 Hızlı Başlangıç+.
 
-## 9 — Alexa + spor alarmını gizleyin (isteğe bağlı)
+## 9 — Alexa ve spor alarmını gizleyin (isteğe bağlı)
 
-LG'nin kendi gizli uygulama listesine ekleniyor; sistem dosyasına
-dokunulmuyor. Betik varsayılan olarak **yalnızca önizleme** yapar:
+Uygulamalar LG'nin kendi gizli uygulama listesine eklenir; sistem
+dosyalarına dokunulmaz. Betik varsayılan olarak **yalnızca önizleme** yapar:
 
 ```bash
 bash araclar/root/gizle.sh              # önce bakın: dosya, şimdiki liste, yeni liste
@@ -322,30 +319,29 @@ bash araclar/root-ssh.sh reboot
 
 Mevcut liste korunur, yalnızca `amazon.alexa.view`, `amazon.alexapr`,
 `com.webos.app.sportsteamsettings` eklenir. Başka bir uygulamayı da
-gizlemek isterseniz kimliğini sona yazın. İlk yazmada orijinal
-`/var/lib/webos-debloat/<BÖLGE>.json.orig` olarak yedeklenir, geri almak
-için `--geri-al`.
+gizlemek isterseniz kimliğini sona yazın. İlk yazmada orijinal liste
+`/var/lib/webos-debloat/<BÖLGE>.json.orig` olarak yedeklenir; geri almak
+için `--geri-al` kullanın.
 
 Betik GUVENLIK.md 1a'daki kimlikleri (`adoverlay*`, `acroverlay`,
-`homeconnect`) **reddeder**. Root exploit'i bunların üzerinden giriyor.
+`homeconnect`) **reddeder**, çünkü root yöntemi bu uygulamaları kullanıyor.
 
 > **Kontrol:** reboot sonrası
 > `bash araclar/root-ssh.sh 'luna-send -i luna://com.webos.applicationManager/listLaunchPoints "{\"subscribe\":true}"' | head -1`
 > Alexa ve Sports Alert listede olmamalı, **kullandığınız her uygulama
-> listede olmalı**. Her birini bir kez açarak deneyin. INPUT tuşunu da.
+> listede olmalı**. Her birini ve INPUT tuşunu bir kez deneyin.
 
-webOS 6.5'te doğru anahtar `blocked_applist` (dosya `blockedAppList/`
-altında). webOS 26 rehberlerindeki `blockedSystemAppList` yolu bu sürümde
-**sessizce hiçbir şey yapmıyor**, uyguladığınızı sanırsınız.
+webOS 6.5'te doğru anahtar `blocked_applist`'tir (dosya `blockedAppList/`
+altında). Yeni webOS rehberlerindeki `blockedSystemAppList` bu sürümde
+**sessizce hiçbir şey yapmaz**; uyguladığınızı sanırsınız.
 
 ## 10 — Yol durumu ve trafik haritası (isteğe bağlı)
 
 İstanbul trafik endeksi widget'ı (`trafik`) anahtarsız çalışır. Kendi
 güzergâhlarınızın canlı süresi (`yol`, `yolGenis`), köprü/tünel kapanmaları,
-kontrol noktalı görünüm (`durak`, `durakGenis`) ve tam ekran harita
-**TomTom** ister. Anahtar ücretsiz ve kendiniz alıyorsunuz:
-**[belgeler/TOMTOM.md](belgeler/TOMTOM.md)** (hesap, anahtarı Mac'te deneme,
-güzergâh dosyası, kurulum).
+kontrol noktalı görünüm (`durak`, `durakGenis`) ve tam ekran harita için
+**TomTom** anahtarı gerekir. Anahtar ücretsizdir, kendiniz alırsınız:
+**[belgeler/TOMTOM.md](belgeler/TOMTOM.md)**.
 
 Anahtar ya da güzergâh dosyası yoksa bu widget'lar galeride hiç görünmez.
 
@@ -354,9 +350,9 @@ Anahtar ya da güzergâh dosyası yoksa bu widget'lar galeride hiç görünmez.
 ## İlk açılış — ana ekranı düzenleme
 
 Ana ekranda üç bölge var: solda ve sağda 3'er satır, saatin altında
-1 satırlık **orta alan**. Menüdeki **Widget** sekmesine gidin, bir widget
-seçip OK'a basın. Çıkan sayfada "Sola / Ortaya / Sağa ekle" ya da
-"… yerine" seçeneklerini göreceksiniz. Hava ve namaz vakitlerinin 2 satırlık
+1 satırlık **orta alan**. Menüdeki **Widget** sekmesinde bir widget
+seçip OK'a basın; açılan sayfada "Sola / Ortaya / Sağa ekle" ya da
+"… yerine" seçenekleri çıkar. Hava durumu ve namaz vakitlerinin 2 satırlık
 büyük ve 1 satırlık küçük hâli var. 2 satırlık widget'lar ve TV widget'ı
 orta alana konamaz. Yerleşim TV'de saklanır, güncellemede kaybolmaz.
 
@@ -375,15 +371,15 @@ basışta çalışır; ilk basış "Emin misin?" diye sorar. Tam kapat, Quick St
 geçici olarak kapatıp LG'nin kendi kapatmasını kullanır (kumandayla açılır);
 sonraki açılışta servis Quick Start+'ı geri açar.
 
-`kur.sh` sürüm doğrulaması yapıyor çünkü kurulum servisi takılabiliyor ve
-"başarılı" diyip eski sürümü bırakabiliyor. Takılırsa:
+`kur.sh` sürümü doğrular, çünkü TV'nin kurulum servisi takılıp "başarılı"
+deyip eski sürümü bırakabiliyor. Takılırsa:
 ```bash
 bash araclar/root-ssh.sh 'restart appinstalld'
 ```
 
 ## Güncelleme (eski Sade sürümünden)
 
-Yerleşiminiz, dock'unuz ve temanız TV'de saklanıyor; güncelleme bunlara
+Yerleşiminiz, dock'unuz ve temanız TV'de saklanır; güncelleme bunlara
 dokunmaz.
 
 ```bash
@@ -394,14 +390,14 @@ dokunmaz.
 # 2) Uygulama
 bash araclar/paketle.sh
 bash araclar/kur.sh cikti/com.bilal.sade_*_all.ipk
-# 3) Servis (servis dosyaları da değiştiyse — eski bir sürümden
-#    geliyorsanız evet). Önce testler:
+# 3) Servis dosyaları da değiştiyse (eski bir sürümden geliyorsanız
+#    değişmiştir) servis. Önce testler:
 for t in servis/test/*.js; do node "$t" || break; done
 bash araclar/servis-kur.sh
 ```
 
-`kur.sh` uygulamayı başlatmaz, TV'de o an ne izleniyorsa önde kalır;
-yeni sürüm bir sonraki HOME basışında açılır.
+`kur.sh` uygulamayı başlatmaz; TV'de o an ne izleniyorsa önde kalır.
+Yeni sürüm bir sonraki HOME basışında açılır.
 
 > **Kontrol:** `kur.sh` "OK — kurulu: 2.19.1" yazmalı. Yazmıyorsa:
 > `bash araclar/root-ssh.sh 'restart appinstalld'` ve tekrar deneyin.
@@ -413,24 +409,26 @@ veri parçasında tamponun tamamını baştan tarıyordu.** Eski `appId`
 değerleri tekrar tekrar eşleşip her biri yeni bir komut tetikliyordu:
 LG Home açılıyor, Sade açılıyor, LG Home açılıyor… ve uygulama çöküyordu.
 
-Doğrusu tam JSON nesnelerini tampondan **söküp çıkarmak** (tüketmek).
-`servis/test/ayristirici-testi.js` tam bunu test ediyor.
+Doğrusu, tamamlanan JSON nesnelerini tampondan **çıkarmaktır**.
+`servis/test/ayristirici-testi.js` bunu test ediyor.
 
 İkinci test (`tepki-testi.js`) devre kesiciyi doğruluyor. LG, HOME'u
 yaklaşık 340 ms sonra yeniden sahipleniyor, bu yüzden servis bir basışa
 3 kez tepki veriyor. Gerçek bir döngü ise **aynı milisaniyede** tekrar
-ediyor — eşik bu ikisini ayırt edecek şekilde ayarlı (1 saniyede 6'dan
-fazla → 30 saniye sus). Daha sıkı bir eşik normal kullanımı kesiyor.
+ediyor. Eşik bu ikisini ayırt edecek şekilde ayarlı (1 saniyede 6'dan fazla
+tepki olursa 30 saniye susar); daha sıkı bir eşik normal kullanımı kesiyor.
+Aynı test, bir uygulama kapanınca LG ana ekranının kendiliğinden gelmesine
+verilen tepkiyi de kapsar.
 
-## Sık karşılaşılan şeyler
+## Sık karşılaşılan sorunlar
 
-| Belirti | Sebep |
+| Belirti | Sebep ve çözüm |
 |---|---|
 | HOME'a basınca hiçbir şey olmuyor | `disableHome` `true` kalmış. GUVENLIK.md 4c. |
-| Servis HOME'u görmüyor | Magic Remote sonradan başka bir `event*` düğümüne geçiyor. Servis 5 sn'de yeni aygıt tarıyor, 30 sn'de hepsini kapatıp açıyor — 30 sn bekleyin. |
-| Launcher açılışta gelmiyor | Gelmiyor, gelemez. README "Ne vermiyor". |
-| `luna-send -n 1` boş dönüyor | Bazı servisler yalnızca abonelik biçimine cevap veriyor: `-i ... "{\"subscribe\":true}"`. |
-| Hava durumu Apple Weather'dan sapıyor | Koordinatınız mahalle seviyesinde mi? Şehir merkezi sistematik sapma veriyor. |
-| Araçlar aniden TV'yi bulamıyor | DHCP kirası kaymıştır. `araclar/tv-ip.sh` MAC'ten bulur; `ayarlar.yerel.sh`'taki `TV_MAC` doğru mu? TV hem kablo hem Wi-Fi'deyse iki MAC'i de yazın. |
-| Klima/cihaz widget'ları kayboldu | `homeconnect` bulut oturumunu kaybetmiştir (IP değişimi tipik sebep). Servisi yeniden başlat: `bash araclar/root-ssh.sh 'kill $(pgrep -f com.webos.service.homeconnect)'` |
-| Launcher öndeyken HOME'a basınca donuyordu | Düzeltildi — zaten önde olan uygulama tekrar `launch` edilmiyor (`servis/acilma-karari.js`). |
+| Servis HOME'u görmüyor | Magic Remote sonradan başka bir `event*` düğümüne geçiyor. Servis 5 sn'de bir yeni aygıt arar, 30 sn'de bir hepsini kapatıp açar; 30 sn bekleyin. |
+| Soğuk açılışta Sade geç geliyor | Beklenen durum: ~25 sn. README, "Bilmeniz gerekenler". |
+| `luna-send -n 1` boş dönüyor | Bazı servisler yalnızca abonelik biçimine yanıt verir: `-i ... "{\"subscribe\":true}"`. |
+| Hava durumu başka uygulamalardan sapıyor | Koordinatınız mahalle düzeyinde mi? Şehir merkezi sistematik sapma verir. |
+| Araçlar aniden TV'yi bulamıyor | TV'nin IP'si değişmiştir. `araclar/tv-ip.sh` MAC'ten bulur; `ayarlar.yerel.sh`'taki `TV_MAC` doğru mu? TV hem kablo hem Wi-Fi'deyse iki MAC'i de yazın. |
+| Klima/cihaz widget'ları kayboldu | `homeconnect` bulut oturumunu kaybetmiştir (tipik sebep IP değişimi). Servisi yeniden başlatın: `bash araclar/root-ssh.sh 'kill $(pgrep -f com.webos.service.homeconnect)'` |
+| Launcher öndeyken HOME'a basınca donuyordu | Düzeltildi: önde olan uygulama yeniden başlatılmıyor (`servis/acilma-karari.js`). |
