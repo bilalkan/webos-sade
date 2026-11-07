@@ -7,7 +7,7 @@ daha fazlası. HOME tuşuna basınca LG'nin ekranı yerine Sade açılır.
 
 https://github.com/user-attachments/assets/34441b90-d8f1-405e-9722-3930fab6229e
 
-**Sürüm 2.19.1** · Kurulum: **[KURULUM.md](KURULUM.md)** (sıfırdan root,
+**Sürüm 2.19.2** · Kurulum: **[KURULUM.md](KURULUM.md)** (sıfırdan root,
 zaten rootlu TV için kısa yol, eski sürümden güncelleme)
 
 ```bash

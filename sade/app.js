@@ -919,6 +919,10 @@
     } catch (e) { son(null); }
   }
 
+  /* Suren okuma: ayni uca ikinci istek acilmasin (zaman asimi 15-30 sn,
+     durum turu 15 sn). */
+  var ucan = {};
+
   function kopruCagir(sorgu, geri) { kopruCagir2('/parlaklik', sorgu, geri); }
 
   /* enerji: picture.energySaving ham degeri.
@@ -1137,13 +1141,19 @@
     var dk = durumSayac % 4 === 0, bes = durumSayac % 20 === 0;
     /* Uygulama kurulup kaldirilmasi seyrek: 10 dk'da bir yeter. */
     if (durumSayac % 40 === 0) yukluleriOku();
-    if (ekranVeri === null || (dk && widgetGerekli('ekran'))) ekranOku();
+    /* 6 KASIM: soguk acilista Sade 25. sn'de, kok servis ~49. sn'de geliyor.
+       Aradaki ilk okuma hata donup {hata:true} yaziyordu; sonraki deneme
+       1-5 dk sonraydi ve widget o kadar "alinamadi" diye kaliyordu.
+       Artik ilk 5 dk icinde hatali olan her turda (15 sn) yeniden soruluyor;
+       sonrasinda eski hizina donuyor (servis hic yoksa TV'yi yormasin). */
+    var erken = durumSayac < 20;
+    if (ekranVeri === null || (erken && ekranVeri.hata) || (dk && widgetGerekli('ekran'))) ekranOku();
     if (uykuVeri === null || (dk && widgetGerekli('uyku'))) uykuOku();
     if (filmVeri === null || (dk && widgetGerekli('film'))) filmOku();
     /* Piyasa ve trafik servis tarafinda 5 dk onbellekli; buradan da 5 dk'da bir. */
-    if (piyasaVeri === null || (bes && (widgetGerekli('piyasa') || widgetGerekli('piyasaGenis')))) piyasaOku();
-    if (trafikVeri === null || (bes && (widgetGerekli('trafik') || widgetGerekli('yolGenis')))) trafikOku();
-    if (yolVeri === null || (bes && (widgetGerekli('yol') || widgetGerekli('yolGenis') ||
+    if (piyasaVeri === null || (erken && piyasaVeri.hata) || (bes && (widgetGerekli('piyasa') || widgetGerekli('piyasaGenis')))) piyasaOku();
+    if (trafikVeri === null || (erken && trafikVeri.hata) || (bes && (widgetGerekli('trafik') || widgetGerekli('yolGenis')))) trafikOku();
+    if (yolVeri === null || (erken && yolVeri.hata) || (bes && (widgetGerekli('yol') || widgetGerekli('yolGenis') ||
                                      widgetGerekli('durak') || widgetGerekli('durakGenis')))) yolOku();
     durumSayac++;
   }
@@ -2811,6 +2821,30 @@
   /* Gecici bos listeye tolerans — bkz. cihazlariOku(). 3 x 60 sn = 3 dk. */
   var bosSayac = 0, BOS_SINIR = 3;
 
+  /* Son gorulen cihaz listesi. 6 KASIM: acilista homeconnect bos liste
+     donunce Sade'nin elinde "daha once gordugu" liste olmuyordu (yeni
+     acilmis sayfa); klima/camasir widget'lari "evde yok" sayilip
+     gizleniyordu. Artik son liste diskte; acilista "Baglaniyor…" diye
+     cizilip gercek cevap gelince yerini aliyor. Bos cevaba tolerans
+     (BOS_SINIR) bu listeye de uygulaniyor. */
+  var CIHAZ_ANAHTAR = 'sade.cihazlar';
+  function cihazOnbellekYaz(l) {
+    try { localStorage.setItem(CIHAZ_ANAHTAR, JSON.stringify(l)); } catch (e) {}
+  }
+  function cihazOnbellekOku() {
+    var l = null;
+    try { l = JSON.parse(localStorage.getItem(CIHAZ_ANAHTAR) || 'null'); } catch (e) {}
+    if (!l || !l.length || !l.every(function (c) { return c && c.deviceType; })) return null;
+    return l.map(function (c) {
+      var k = {}; for (var a in c) if (c.hasOwnProperty(a)) k[a] = c[a];
+      k.status = 'baglaniyor';
+      return k;
+    });
+  }
+  function baglantiYazisi(c) {
+    return c && c.status === 'baglaniyor' ? 'Bağlanıyor…' : 'Erişilemiyor';
+  }
+
   function kaynakDeger(c, ad) {
     var r = c.resources && c.resources[ad];
     if (!r) return null;
@@ -2871,7 +2905,7 @@
     var ad = document.createElement('div'); ad.className = 'cihaz-ad';
     ad.textContent = c.alias || CIHAZ_ADI[tip] || 'Cihaz';
     var alt = document.createElement('div'); alt.className = 'cihaz-alt';
-    alt.textContent = (c.status === 'connected') ? 'Bağlı' : 'Erişilemiyor';
+    alt.textContent = (c.status === 'connected') ? 'Bağlı' : baglantiYazisi(c);
     yazi.appendChild(ad); yazi.appendChild(alt);
     ust.appendChild(ik); ust.appendChild(yazi);
 
@@ -2967,7 +3001,7 @@
       }
       var dur = kaynakDeger(c, 'state.washer');
       if (c.status !== 'connected') {
-        bilgiSatiri('Durum', 'Erişilemiyor');
+        bilgiSatiri('Durum', baglantiYazisi(c));
       } else if (dur !== null) {
         bilgiSatiri('Durum', YIKAMA_ADI[dur] || dur);
         if (CALISIYOR[dur]) {
@@ -3146,7 +3180,7 @@
     w.classList.toggle('pasif', !acik);
 
     var parcalar = [];
-    if (!bagli) parcalar.push('Erişilemiyor');
+    if (!bagli) parcalar.push(baglantiYazisi(c));
     else if (acik) parcalar.push(MOD_ADI[mod] || 'Açık');
     else parcalar.push('Kapalı');
     if (oda !== null && oda !== undefined) parcalar.push('Oda ' + derece(oda) + '°');
@@ -3205,7 +3239,7 @@
         kayit('bos cihaz listesi (' + bosSayac + '/' + BOS_SINIR + '), eski liste korunuyor');
         cihazlar = cihazlar.map(function (c) {
           var k = {}; for (var a in c) if (c.hasOwnProperty(a)) k[a] = c[a];
-          k.status = 'unavailable';
+          k.status = c.status === 'baglaniyor' ? 'baglaniyor' : 'unavailable';
           return k;
         });
         klimaWidgetCiz(); cihazWidgetleriCiz();
@@ -3220,6 +3254,7 @@
       });
       cihazlar = klimalar.concat(digerleri);
       kayit('cihaz sayisi: ' + cihazlar.length);
+      if (cihazlar.length) cihazOnbellekYaz(cihazlar);
       klimaWidgetCiz(); cihazWidgetleriCiz();    /* once gorunurluk, sonra odak boyamasi */
       cihazBilgisiGeldi(gelen);
       cihazlariCiz();
@@ -3870,7 +3905,7 @@
     var bagli = c.status === 'connected';
     w.classList.toggle('pasif', !bagli);
     w.classList.remove('uyari');
-    if (!bagli) { alt.textContent = 'Erişilemiyor'; sag.innerHTML = ''; return; }
+    if (!bagli) { alt.textContent = baglantiYazisi(c); sag.innerHTML = ''; return; }
     var d = kaynakDeger(c, durumKaynak);
     var kurs = kursKaynak ? kaynakDeger(c, kursKaynak) : null;
     var kalan = kalanSure(c);
@@ -3897,7 +3932,7 @@
     var alt = $('#cw-buzdolabi-alt'), sag = $('#cw-buzdolabi-sag');
     var bagli = c.status === 'connected';
     w.classList.toggle('pasif', !bagli);
-    if (!bagli) { w.classList.remove('uyari'); alt.textContent = 'Erişilemiyor'; sag.innerHTML = ''; return; }
+    if (!bagli) { w.classList.remove('uyari'); alt.textContent = baglantiYazisi(c); sag.innerHTML = ''; return; }
     var kapak = kaynakDeger(c, 'door.main');
     var acik = kapak === 'OPEN';
     w.classList.toggle('uyari', acik);
@@ -4073,7 +4108,10 @@
   }
 
   function piyasaOku() {
+    if (ucan.piyasa) return;
+    ucan.piyasa = true;
     kopruCagir2('/piyasa', '', function (o) {
+      ucan.piyasa = false;
       if (o && o.kalemler && o.kalemler.length) piyasaVeri = o;
       else if (!piyasaVeri) piyasaVeri = { hata: true };
       piyasaCiz();
@@ -4151,7 +4189,10 @@
   }
 
   function trafikOku() {
+    if (ucan.trafik) return;
+    ucan.trafik = true;
     kopruCagir2('/trafik', '', function (o) {
+      ucan.trafik = false;
       if (o && typeof o.endeks === 'number') trafikVeri = o;
       else if (!trafikVeri) trafikVeri = { hata: true };
       trafikCiz();
@@ -4221,7 +4262,10 @@
   var yolVeri = null;
 
   function yolOku() {
+    if (ucan.yol) return;
+    ucan.yol = true;
     kopruCagir2('/guzergah', '', function (o) {
+      ucan.yol = false;
       var oncekiTanimsiz = !!(yolVeri && yolVeri.tanimsiz);
       if (o && (o.tanimsiz || (o.yollar && o.yollar.length))) yolVeri = o;
       else if (!yolVeri) yolVeri = { hata: true };
@@ -4803,7 +4847,10 @@
   var ekranVeri = null;
 
   function ekranOku() {
+    if (ucan.ekran) return;
+    ucan.ekran = true;
     kopruCagir2('/ekran', '', function (o) {
+      ucan.ekran = false;
       ekranVeri = (o && typeof o.toplamSn === 'number') ? o : (ekranVeri || { hata: true });
       ekranCiz();
     });
@@ -5226,6 +5273,13 @@
     yerlesimOku();
     yerlesimUygula();
 
+    cihazlar = cihazOnbellekOku();
+    if (cihazlar) {
+      kayit('onbellekten ' + cihazlar.length + ' cihaz, baglaniyor');
+      klimaWidgetCiz(); cihazWidgetleriCiz();
+      cihazBilgisiGeldi(cihazlar);
+      cihazlariCiz();
+    }
     cihazlariOku();
     setInterval(cihazlariOku, 60000);
 
