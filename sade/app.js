@@ -1123,8 +1123,22 @@
      servisinde fork ediyor). Her 15 sn'de bir buna gerek yok: deger yalnizca
      panel acikken anlamli, geri kalaninda tek isi simgeyi gosterip
      gizlemek. Panel kapaliyken dakikada bir okuyoruz. */
-  var durumSayac = 0;
+  var durumSayac = 0, durumAn = 0;
   function durumOku() {
+    /* 8 KASIM, TV'de fotografla goruldu: 13:05'te ana sayfadaki Duraklar
+       21/22 dk (yesil), ayni anda acilan harita 42/45 dk. Sade arka
+       plandayken (baska uygulama izlenirken) webOS sayfanin zamanlayicilarini
+       donduruyor; "5 dk'da bir" sayaci da donuyor ve Sade one gelince eski
+       veri dakikalarca, sayac yetisene kadar ekranda kaliyordu. Iki tur
+       arasinda 45 sn'den fazla gectiyse sayfa uyumus demektir: her seyi
+       hemen tazele. */
+    var simdi = Date.now();
+    var uyandi = durumAn && simdi - durumAn > 45000;
+    if (uyandi) {
+      kayit('uyandi (' + Math.round((simdi - durumAn) / 1000) + ' sn) — veriler tazeleniyor');
+      cihazlariOku();
+    }
+    durumAn = simdi;
     sesOku(); agOku(); btOku(); btCihazOku(); cikisOku();
     if (acikPanel === 'parlaklik' || durumBilgi.parlaklik === null ||
         durumSayac % 4 === 0) {
@@ -1132,13 +1146,13 @@
     }
     /* Sistem okumasi da surec dogurtuyor (luna-send x2) ve calisma
        suresi/RAM saniyede bir degismiyor — dakikada bir yeter. */
-    if (sistemBilgi === null || durumSayac % 4 === 0) sistemOku();
+    if (sistemBilgi === null || uyandi || durumSayac % 4 === 0) sistemOku();
     /* Widget verileri yalnizca ekranda olan widget'lar icin tazeleniyor
        (ana sayfaya yerlesmis ya da galeri acik). /uyku ve /film TV'de
        luna-send sureci dogurtuyor; kimsenin gormedigi widget icin dakikada
        bir surec acmanin anlami yok. Ilk okuma (veri === null) her zaman
        yapiliyor ki galeri ve yerlestirme bos acilmasin. */
-    var dk = durumSayac % 4 === 0, bes = durumSayac % 20 === 0;
+    var dk = uyandi || durumSayac % 4 === 0, bes = uyandi || durumSayac % 20 === 0;
     /* Uygulama kurulup kaldirilmasi seyrek: 10 dk'da bir yeter. */
     if (durumSayac % 40 === 0) yukluleriOku();
     /* 6 KASIM: soguk acilista Sade 25. sn'de, kok servis ~49. sn'de geliyor.
@@ -4108,10 +4122,10 @@
   }
 
   function piyasaOku() {
-    if (ucan.piyasa) return;
-    ucan.piyasa = true;
+    if (ucan.piyasa && Date.now() - ucan.piyasa < 60000) return;
+    ucan.piyasa = Date.now();
     kopruCagir2('/piyasa', '', function (o) {
-      ucan.piyasa = false;
+      ucan.piyasa = 0;
       if (o && o.kalemler && o.kalemler.length) piyasaVeri = o;
       else if (!piyasaVeri) piyasaVeri = { hata: true };
       piyasaCiz();
@@ -4189,10 +4203,10 @@
   }
 
   function trafikOku() {
-    if (ucan.trafik) return;
-    ucan.trafik = true;
+    if (ucan.trafik && Date.now() - ucan.trafik < 60000) return;
+    ucan.trafik = Date.now();
     kopruCagir2('/trafik', '', function (o) {
-      ucan.trafik = false;
+      ucan.trafik = 0;
       if (o && typeof o.endeks === 'number') trafikVeri = o;
       else if (!trafikVeri) trafikVeri = { hata: true };
       trafikCiz();
@@ -4262,10 +4276,10 @@
   var yolVeri = null;
 
   function yolOku() {
-    if (ucan.yol) return;
-    ucan.yol = true;
+    if (ucan.yol && Date.now() - ucan.yol < 60000) return;
+    ucan.yol = Date.now();
     kopruCagir2('/guzergah', '', function (o) {
-      ucan.yol = false;
+      ucan.yol = 0;
       var oncekiTanimsiz = !!(yolVeri && yolVeri.tanimsiz);
       if (o && (o.tanimsiz || (o.yollar && o.yollar.length))) yolVeri = o;
       else if (!yolVeri) yolVeri = { hata: true };
@@ -4847,10 +4861,10 @@
   var ekranVeri = null;
 
   function ekranOku() {
-    if (ucan.ekran) return;
-    ucan.ekran = true;
+    if (ucan.ekran && Date.now() - ucan.ekran < 60000) return;
+    ucan.ekran = Date.now();
     kopruCagir2('/ekran', '', function (o) {
-      ucan.ekran = false;
+      ucan.ekran = 0;
       ekranVeri = (o && typeof o.toplamSn === 'number') ? o : (ekranVeri || { hata: true });
       ekranCiz();
     });
@@ -5285,6 +5299,15 @@
 
     durumOku();
     setInterval(durumOku, 15000);
+    /* One gelince 15 sn'lik turu bekleme: hemen bir tur (uyandi kurali
+       uzun aradan sonra her seyi tazeler). webOS ikisinden birini yolluyor. */
+    function oneGeldi() {
+      if (document.hidden || document.webkitHidden) return;
+      if (durumAn && Date.now() - durumAn > 45000) durumOku();
+    }
+    document.addEventListener('visibilitychange', oneGeldi);
+    document.addEventListener('webkitvisibilitychange', oneGeldi);
+    document.addEventListener('webOSRelaunch', oneGeldi);
 
     baslangicGorunumu();
     odakCiz();

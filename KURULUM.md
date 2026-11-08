@@ -5,7 +5,7 @@ Tahmini süre 2–3 saat. Acele etmeyin, her adımın sonundaki **kontrolü**
 
 Önce [GUVENLIK.md](GUVENLIK.md) okunmalı.
 
-Bu belge **Sade 2.19.2** içindir (sürüm: `sade/appinfo.json`).
+Bu belge **Sade 2.19.3** içindir (sürüm: `sade/appinfo.json`).
 
 ## Hangi yoldan gideceksiniz?
 
@@ -28,7 +28,7 @@ nano ayarlar.yerel.sh           # TV_IP, TV_MAC (ROOT_KEY gerekirse)
 nano sade/yapilandirma.js       # enlem / boylam / şehir
 bash araclar/root-ssh.sh 'id'   # "uid=0(root)" görmelisiniz
 bash araclar/paketle.sh
-bash araclar/kur.sh cikti/com.bilal.sade_*_all.ipk   # "OK — kurulu: 2.19.2"
+bash araclar/kur.sh cikti/com.bilal.sade_*_all.ipk   # "OK — kurulu: 2.19.3"
 ```
 
 Bu kadarıyla Sade uygulama listesinde görünür ve elle açılır. HOME
@@ -399,7 +399,7 @@ bash araclar/servis-kur.sh
 `kur.sh` uygulamayı başlatmaz; TV'de o an ne izleniyorsa önde kalır.
 Yeni sürüm bir sonraki HOME basışında açılır.
 
-> **Kontrol:** `kur.sh` "OK — kurulu: 2.19.2" yazmalı. Yazmıyorsa:
+> **Kontrol:** `kur.sh` "OK — kurulu: 2.19.3" yazmalı. Yazmıyorsa:
 > `bash araclar/root-ssh.sh 'restart appinstalld'` ve tekrar deneyin.
 
 ## Neden bu testler var
