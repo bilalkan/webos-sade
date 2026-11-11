@@ -148,11 +148,9 @@
     var p = /(\d{1,2}):(\d{2})/.exec(hhmm || '');
     return p ? (+p[1]) * 60 + (+p[2]) : null;
   }
-  function sureMetni(dakika) {
-    var s = Math.floor(dakika / 60), d = dakika % 60;
-    if (s > 0) return s + ' sa ' + d + ' dk';
-    return d + ' dk';
-  }
+  /* sureMetni(sn) asagida (sistem bolumu). Burada bir de dakika alan ayni
+     adli fonksiyon vardi; ayni kapsamda sonraki tanim oncekini eziyordu ve
+     Cihazlar sayfasi dakikayi saniye sanip 1 sa 14 dk'yi "1 dk" yaziyordu. */
 
   /* ---------- hava durumu (Open-Meteo, anahtarsiz) ---------------------- */
   var WMO = {
@@ -354,100 +352,192 @@
     return dk2 < dg || dk2 >= bt;
   }
 
+  /* ---------- hava: onbellek + yedek kaynak (2.20.0) ----------------------
+     Acilista ag gec gelince ya da Open-Meteo cevap vermeyince hava kutusu
+     gizli kaliyordu ve sonraki deneme 15 dk sonraydi. Artik:
+     - her basarili saatlik dizi yerel depoya yaziliyor; acilista once o
+       ciziliyor (48 saatlik tahmin ertesi gun bile "su an"i kapsiyor),
+     - Open-Meteo dusurse MET Norway (api.met.no: anahtarsiz, CORS acik;
+       tvOS Launcher'in yedek sirasi) deneniyor,
+     - ikisi de dusurse 30 sn / 2 dk / 5 dk arayla yeniden deneniyor. */
+  var HAVA_ANAHTAR = 'sade.hava';
+  var HAVA_TEKRAR = [30, 120, 300];
+  var havaDeneme = 0, havaZaman = null, havaAn = 0;
+
+  function havaOnbellekYaz(h, kaynak) {
+    try {
+      localStorage.setItem(HAVA_ANAHTAR, JSON.stringify(
+        {yer: ENLEM + ',' + BOYLAM, an: Date.now(), kaynak: kaynak, h: h}));
+    } catch (e) {}
+  }
+  function havaOnbellekOku() {
+    try {
+      var o = JSON.parse(localStorage.getItem(HAVA_ANAHTAR) || 'null');
+      if (o && o.yer === ENLEM + ',' + BOYLAM && o.h && o.h.time) return o;
+    } catch (e) {}
+    return null;
+  }
+
+  /* MET Norway compact -> Open-Meteo bicimi (tek "model" olarak MODELLER[0]
+     adiyla; ortalama() eksik modelleri zaten atliyor). Saatler UTC geliyor,
+     yerel saate ceviriyoruz. Yagis olasiligi yok; sonraki saatin yagis
+     miktarindan kaba bir olasilik turetiyoruz (0,5 mm+ = 60, 0,1 mm+ = 35). */
+  function metCevir(v) {
+    var ts = v && v.properties && v.properties.timeseries;
+    if (!ts || !ts.length) return null;
+    var M = MODELLER[0], h = {time: []};
+    var sic = h['temperature_2m_' + M] = [];
+    var bul = h['cloud_cover_' + M] = [];
+    var yag = h['precipitation_probability_' + M] = [];
+    for (var i = 0; i < ts.length && h.time.length < 48; i++) {
+      var dt = ts[i].data || {}, bir = dt.next_1_hours;
+      if (!bir) break;                   // saatlik bolum bitti, 6 saatlik basliyor
+      var d = new Date(ts[i].time);
+      if (isNaN(d.getTime())) continue;
+      var an = (dt.instant && dt.instant.details) || {};
+      var mm = (bir.details && bir.details.precipitation_amount) || 0;
+      h.time.push(d.getFullYear() + '-' + ikiHane(d.getMonth() + 1) + '-' +
+                  ikiHane(d.getDate()) + 'T' + ikiHane(d.getHours()) + ':00');
+      sic.push(typeof an.air_temperature === 'number' ? an.air_temperature : null);
+      bul.push(typeof an.cloud_area_fraction === 'number' ? an.cloud_area_fraction : null);
+      yag.push(mm >= 0.5 ? 60 : mm >= 0.1 ? 35 : 0);
+    }
+    return h.time.length ? h : null;
+  }
+
   function havaDurumu() {
+    if (havaZaman) { clearTimeout(havaZaman); havaZaman = null; }
     var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + ENLEM +
               '&longitude=' + BOYLAM +
               '&hourly=temperature_2m,cloud_cover,precipitation_probability' +
               '&models=' + MODELLER.join(',') +
               '&timezone=auto&forecast_days=2';
+    function geldi(h, kaynak) {
+      havaDeneme = 0; havaAn = Date.now();
+      havaOnbellekYaz(h, kaynak);
+      havaCiz(h, kaynak);
+    }
+    function ikisiDeYok() {
+      var sn = HAVA_TEKRAR[Math.min(havaDeneme, HAVA_TEKRAR.length - 1)];
+      havaDeneme++;
+      kayit('hava: ' + sn + ' sn sonra yeniden denenecek (' + havaDeneme + ')');
+      havaZaman = setTimeout(havaDurumu, sn * 1000);
+    }
     istek(url, function (v) {
       var h = v && v.hourly;
-      if (!h || !h.time) return;
+      if (!h || !h.time) { metDene(); return; }
+      geldi(h, 'harman');
+    }, 'hava', metDene, true);
 
-      var simdi = new Date();
-      var bugun = simdi.getDate();
+    function metDene() {
+      kayit('hava: Open-Meteo yok, MET Norway deneniyor');
+      istek('https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=' +
+            (+ENLEM).toFixed(4) + '&lon=' + (+BOYLAM).toFixed(4), function (v) {
+        var h = metCevir(v);
+        if (!h) { ikisiDeYok(); return; }
+        geldi(h, 'MET');
+      }, 'hava', ikisiDeYok);
+    }
+  }
 
-      /* saat etiketleri yerel ("2026-10-23T16:00"); saati metinden okuyoruz
-         ki motorun ISO ayristirma davranisina bagli kalmayalim */
-      function saatiAl(t) { return parseInt(t.slice(11, 13), 10); }
-      function gunuAl(t)  { return parseInt(t.slice(8, 10), 10); }
+  /* Onbellekten cizim: "su an"in saati dizide yoksa (cok eski) cizmez. */
+  function havaOnbellektenCiz() {
+    var o = havaOnbellekOku();
+    if (!o) return false;
+    var ok = havaCiz(o.h, o.kaynak + ', önbellek ' +
+                     Math.round((Date.now() - o.an) / 60000) + ' dk', true);
+    return ok;
+  }
 
-      /* --- su an --- */
-      var simdiIdx = -1;
-      for (var i = 0; i < h.time.length; i++) {
-        if (gunuAl(h.time[i]) === bugun && saatiAl(h.time[i]) === simdi.getHours()) {
-          simdiIdx = i; break;
-        }
+  function havaCiz(h, kaynak, onbellekten) {
+    var simdi = new Date();
+    var bugun = simdi.getDate();
+
+    /* saat etiketleri yerel ("2026-10-23T16:00"); saati metinden okuyoruz
+       ki motorun ISO ayristirma davranisina bagli kalmayalim */
+    function saatiAl(t) { return parseInt(t.slice(11, 13), 10); }
+    function gunuAl(t)  { return parseInt(t.slice(8, 10), 10); }
+
+    /* --- su an --- */
+    var simdiIdx = -1;
+    for (var i = 0; i < h.time.length; i++) {
+      if (gunuAl(h.time[i]) === bugun && saatiAl(h.time[i]) === simdi.getHours()) {
+        simdiIdx = i; break;
       }
-      if (simdiIdx < 0) simdiIdx = 0;
+    }
+    if (simdiIdx < 0) {
+      if (onbellekten) return false;
+      simdiIdx = 0;
+    }
 
-      var sic = ortalama(h, 'temperature_2m', simdiIdx);
-      var bul = ortalama(h, 'cloud_cover', simdiIdx);
-      var yag = ortalama(h, 'precipitation_probability', simdiIdx) || 0;
-      var coz = durumCoz(bul, yag, geceMi(simdi));
+    var sic = ortalama(h, 'temperature_2m', simdiIdx);
+    if (sic === null) return false;
+    var bul = ortalama(h, 'cloud_cover', simdiIdx);
+    var yag = ortalama(h, 'precipitation_probability', simdiIdx) || 0;
+    var coz = durumCoz(bul, yag, geceMi(simdi));
 
-      $('#hava-derece').textContent = Math.round(sic) + '°';
-      $('#hava-durum').textContent  = coz[0];
-      $('#hava-sehir').textContent  = SEHIR;
-      var ey = $('#ezan-yer'); if (ey) ey.textContent = SEHIR;
-      ikonCiz($('#hava-ikon'), coz[1]);
+    $('#hava-derece').textContent = Math.round(sic) + '°';
+    $('#hava-durum').textContent  = coz[0];
+    $('#hava-sehir').textContent  = SEHIR;
+    var ey = $('#ezan-yer'); if (ey) ey.textContent = SEHIR;
+    ikonCiz($('#hava-ikon'), coz[1]);
 
-      var mbi = $('#mb-ikon'), mbd = $('#mb-derece'), mbh = $('#mb-hava');
-      if (mbi) ikonCiz(mbi, coz[1]);
-      if (mbd) mbd.textContent = Math.round(sic) + '°';
-      if (mbh) mbh.hidden = false;
+    var mbi = $('#mb-ikon'), mbd = $('#mb-derece'), mbh = $('#mb-hava');
+    if (mbi) ikonCiz(mbi, coz[1]);
+    if (mbd) mbd.textContent = Math.round(sic) + '°';
+    if (mbh) mbh.hidden = false;
 
-      /* --- bugunun en yuksek / dusuk --- */
-      var enY = null, enD = null;
-      for (var j = 0; j < h.time.length; j++) {
-        if (gunuAl(h.time[j]) !== bugun) continue;
-        var o = ortalama(h, 'temperature_2m', j);
-        if (o === null) continue;
-        if (enY === null || o > enY) enY = o;
-        if (enD === null || o < enD) enD = o;
-      }
-      if (enY !== null) {
-        $('#hava-yuksek').textContent = '↑ ' + Math.round(enY) + '°';
-        $('#hava-dusuk').textContent  = '↓ ' + Math.round(enD) + '°';
-      }
+    /* --- bugunun en yuksek / dusuk --- */
+    var enY = null, enD = null;
+    for (var j = 0; j < h.time.length; j++) {
+      if (gunuAl(h.time[j]) !== bugun) continue;
+      var o = ortalama(h, 'temperature_2m', j);
+      if (o === null) continue;
+      if (enY === null || o > enY) enY = o;
+      if (enD === null || o < enD) enD = o;
+    }
+    if (enY !== null) {
+      $('#hava-yuksek').textContent = '↑ ' + Math.round(enY) + '°';
+      $('#hava-dusuk').textContent  = '↓ ' + Math.round(enD) + '°';
+    }
 
-      /* --- sonraki 6 saat (ilk 3'u kucuk widget'ta da) --- */
-      var kucukSaatler = [];
-      var kap = $('#saatlik');
-      while (kap.firstChild) kap.removeChild(kap.firstChild);
-      var say = 0;
-      for (var k = simdiIdx + 1; k < h.time.length && say < 6; k++) {
-        var s2 = ortalama(h, 'temperature_2m', k);
-        if (s2 === null) continue;
-        var b2 = ortalama(h, 'cloud_cover', k);
-        var y2 = ortalama(h, 'precipitation_probability', k) || 0;
-        var sa = saatiAl(h.time[k]);
-        var gc = new Date(simdi.getTime());
-        gc.setHours(sa, 0, 0, 0);
-        var c2 = durumCoz(b2, y2, geceMi(gc));
+    /* --- sonraki 6 saat (ilk 3'u kucuk widget'ta da) --- */
+    var kucukSaatler = [];
+    var kap = $('#saatlik');
+    while (kap.firstChild) kap.removeChild(kap.firstChild);
+    var say = 0;
+    for (var k = simdiIdx + 1; k < h.time.length && say < 6; k++) {
+      var s2 = ortalama(h, 'temperature_2m', k);
+      if (s2 === null) continue;
+      var b2 = ortalama(h, 'cloud_cover', k);
+      var y2 = ortalama(h, 'precipitation_probability', k) || 0;
+      var sa = saatiAl(h.time[k]);
+      var gc = new Date(simdi.getTime());
+      gc.setHours(sa, 0, 0, 0);
+      var c2 = durumCoz(b2, y2, geceMi(gc));
 
-        var hucre = document.createElement('div');
-        hucre.className = 'sa';
-        var us = document.createElement('div');
-        us.className = 'sa-saat';
-        us.textContent = ikiHane(sa) + ':00';
-        var ik = document.createElementNS(NS, 'svg');
-        ik.setAttribute('viewBox', '0 0 64 64');
-        ik.setAttribute('class', 'sa-ikon');
-        ikonCiz(ik, c2[1]);
-        var dr = document.createElement('div');
-        dr.className = 'sa-derece';
-        dr.textContent = Math.round(s2) + '°';
-        hucre.appendChild(us); hucre.appendChild(ik); hucre.appendChild(dr);
-        kap.appendChild(hucre);
-        if (kucukSaatler.length < 3) kucukSaatler.push({ sa: sa, ikon: c2[1], d: Math.round(s2) });
-        say++;
-      }
-      havaKucukCiz(Math.round(sic), coz, enY, enD, kucukSaatler);
+      var hucre = document.createElement('div');
+      hucre.className = 'sa';
+      var us = document.createElement('div');
+      us.className = 'sa-saat';
+      us.textContent = ikiHane(sa) + ':00';
+      var ik = document.createElementNS(NS, 'svg');
+      ik.setAttribute('viewBox', '0 0 64 64');
+      ik.setAttribute('class', 'sa-ikon');
+      ikonCiz(ik, c2[1]);
+      var dr = document.createElement('div');
+      dr.className = 'sa-derece';
+      dr.textContent = Math.round(s2) + '°';
+      hucre.appendChild(us); hucre.appendChild(ik); hucre.appendChild(dr);
+      kap.appendChild(hucre);
+      if (kucukSaatler.length < 3) kucukSaatler.push({ sa: sa, ikon: c2[1], d: Math.round(s2) });
+      say++;
+    }
+    havaKucukCiz(Math.round(sic), coz, enY, enD, kucukSaatler);
 
-      $('#hava-panel').hidden = false;
-      kayit('hava (harman): ' + Math.round(sic) + '° bulut%' + Math.round(bul));
-    }, 'hava');
+    $('#hava-panel').hidden = false;
+    kayit('hava (' + kaynak + '): ' + Math.round(sic) + '° bulut%' + Math.round(bul));
+    return true;
   }
 
   /* HAVA 3x1: simge + buyuk derece | durum, sehir ve en yuksek/dusuk | sonraki 3 saat */
@@ -548,33 +638,95 @@
      yonlendiriyor; tarihli adresi dogrudan cagirip o adimi atliyoruz. */
   var ezanDeneme = 0, ezanZaman = null;
   var EZAN_TEKRAR = [30, 120, 300, 900];
+
+  /* 2.20.0: AYLIK ONBELLEK. Vakitler her gun agdan cekiliyordu; acilista ag
+     gec gelince ya da Aladhan cevap vermeyince panel 30 sn - 15 dk bos
+     kaliyordu. Diyanet vakitleri bir kez hesaplaninca degismiyor, o yuzden
+     Aladhan'in aylik takvimini (tek istek, ~40 KB, sade hali ~3 KB) yerel
+     depoya yaziyoruz: ay icinde ag hic gerekmiyor. Ayin 20'sinden sonra
+     sonraki ay da sessizce cekiliyor, ay basinda ag yoksa bile vakit gelir.
+     Konum degisirse onbellek yok sayiliyor. */
+  var EZAN_ANAHTAR = 'sade.ezan';
+  /* Konum VE hesap yontemi ayni sorguda; onbellegin kimligi de bu. Yontem
+     degisirse (pakette yapilandirma.js) eski ayin vakitleri kullanilmaz. */
+  var EZAN_SORGU = '?latitude=' + ENLEM + '&longitude=' + BOYLAM + '&method=' + NAMAZ_YONTEMI;
+  function ezanAyAdi(yil, ay) { return yil + '-' + ikiHane(ay); }   // ay 1..12
+  function ezanOnbellek() {
+    try {
+      var o = JSON.parse(localStorage.getItem(EZAN_ANAHTAR) || 'null');
+      if (o && o.yer === EZAN_SORGU && o.aylar) return o;
+    } catch (e) {}
+    return null;
+  }
+  function ezanGunu(d) {
+    var o = ezanOnbellek();
+    var ay = o && o.aylar[ezanAyAdi(d.getFullYear(), d.getMonth() + 1)];
+    return (ay && ay[d.getDate() - 1]) || null;
+  }
+  function ezanAyCek(yil, ay, tamam, olmadi, sessiz) {
+    var url = 'https://api.aladhan.com/v1/calendar/' + yil + '/' + ay + EZAN_SORGU;
+    istek(url, function (v) {
+      var gunler = [];
+      (v.data || []).forEach(function (g) {
+        var gr = g.date && g.date.gregorian, hc = g.date && g.date.hijri;
+        var no = gr && parseInt(gr.day, 10);
+        if (!no || !g.timings) return;
+        var t = {};
+        VAKIT_ADI.forEach(function (p) { t[p[0]] = (g.timings[p[0]] || '').slice(0, 5); });
+        gunler[no - 1] = {t: t, h: hc ? {g: hc.day, a: parseInt(hc.month && hc.month.number, 10),
+                                          en: hc.month && hc.month.en, y: hc.year} : null};
+      });
+      if (!gunler.length) { if (olmadi) olmadi('bos takvim'); return; }
+      var o = ezanOnbellek() || {yer: EZAN_SORGU, aylar: {}};
+      o.aylar[ezanAyAdi(yil, ay)] = gunler;
+      /* en fazla iki ay tut: bu ay ve sonraki */
+      var bu = new Date(), tut = {};
+      tut[ezanAyAdi(bu.getFullYear(), bu.getMonth() + 1)] = 1;
+      var sn = new Date(bu.getFullYear(), bu.getMonth() + 1, 1);
+      tut[ezanAyAdi(sn.getFullYear(), sn.getMonth() + 1)] = 1;
+      for (var k in o.aylar) if (!tut[k]) delete o.aylar[k];
+      try { localStorage.setItem(EZAN_ANAHTAR, JSON.stringify(o)); } catch (e) {}
+      kayit('ezan: ' + ezanAyAdi(yil, ay) + ' takvimi saklandi (' + gunler.length + ' gun)');
+      if (tamam) tamam();
+    }, 'ezan', olmadi, sessiz);
+  }
+
+  function ezanUygula(g, kaynak) {
+    vakitler = [];
+    VAKIT_ADI.forEach(function (p) {
+      var s = g.t[p[0]] || '';
+      if (dk(s) !== null) vakitler.push({ad: p[1], saat: s, dakika: dk(s), ikon: p[2]});
+    });
+    var hc = g.h;
+    if (hc) {
+      var ayAd = HICRI_AY[hc.a - 1] || hc.en || '';
+      $('#ezan-hicri').textContent = hc.g + ' ' + ayAd + ' ' + hc.y;
+      hicriKisa = hc.g + ' ' + ayAd;
+    }
+    vakitleriCiz();
+    geriSayim();
+    $('#ezan-panel').hidden = false;
+    kayit('ezan (' + kaynak + '): ' + vakitler.length + ' vakit');
+  }
+
   function ezanVakitleri() {
     if (ezanZaman) { clearTimeout(ezanZaman); ezanZaman = null; }
     var bu = new Date();
-    var url = 'https://api.aladhan.com/v1/timings/' + ikiHane(bu.getDate()) + '-' +
-              ikiHane(bu.getMonth() + 1) + '-' + bu.getFullYear() +
-              '?latitude=' + ENLEM + '&longitude=' + BOYLAM + '&method=' + NAMAZ_YONTEMI;
-    istek(url, function (v) {
+    var g = ezanGunu(bu);
+    if (g) {
       ezanDeneme = 0;
-      var t = (v.data && v.data.timings) || {};
-      vakitler = [];
-      VAKIT_ADI.forEach(function (p) {
-        var s = (t[p[0]] || '').slice(0, 5);
-        if (dk(s) !== null) vakitler.push({ad: p[1], saat: s, dakika: dk(s), ikon: p[2]});
-      });
-      // hicri tarih ayni yanitin icinde geliyor, ek istek gerekmiyor
-      var hc = v.data && v.data.date && v.data.date.hijri;
-      if (hc) {
-        var ayNo = parseInt(hc.month && hc.month.number, 10);
-        var ayAd = HICRI_AY[ayNo - 1] || (hc.month && hc.month.en) || '';
-        $('#ezan-hicri').textContent = hc.day + ' ' + ayAd + ' ' + hc.year;
-        hicriKisa = hc.day + ' ' + ayAd;
+      ezanUygula(g, 'önbellek');
+      var sn = new Date(bu.getFullYear(), bu.getMonth() + 1, 1);
+      if (bu.getDate() >= 20 && !ezanGunu(sn)) {
+        ezanAyCek(sn.getFullYear(), sn.getMonth() + 1, null, null, true);
       }
-      vakitleriCiz();
-      geriSayim();
-      $('#ezan-panel').hidden = false;
-      kayit('ezan: ' + vakitler.length + ' vakit');
-    }, 'ezan', function () {
+      return;
+    }
+    ezanAyCek(bu.getFullYear(), bu.getMonth() + 1, function () {
+      ezanDeneme = 0;
+      var g2 = ezanGunu(bu);
+      if (g2) ezanUygula(g2, 'ağ');
+    }, function () {
       var sn = EZAN_TEKRAR[Math.min(ezanDeneme, EZAN_TEKRAR.length - 1)];
       ezanDeneme++;
       kayit('ezan: ' + sn + ' sn sonra yeniden denenecek (' + ezanDeneme + ')');
@@ -594,11 +746,20 @@
     return {idx: -1, kalan: (24 * 60 - simdi) + vakitler[0].dakika, vakit: vakitler[0]};
   }
 
+  /* Olcum (2.20.0, 30 sn bosta): saatiGuncelle her 20 sn'de bunu cagiriyor
+     ve liste — 6 satir, 12 SVG degrade — her seferinde silinip sifirdan
+     kuruluyordu; oysa icerik gunde 6 kez (vakit gecince) degisiyor.
+     Gorunen her seyi bir imzaya koyup degismediyse dokunmuyoruz. */
+  var vakitImza = '';
   function vakitleriCiz() {
     if (!vakitler) return;
     var liste = $('#vakitler');
-    while (liste.firstChild) liste.removeChild(liste.firstChild);
     var s = siradakiVakit();
+    var imza = vakitler.map(function (v) { return v.saat; }).join(',') + '|' +
+               (s ? s.idx : 'x') + '|' + hicriKisa;
+    if (imza === vakitImza && liste.childNodes.length === vakitler.length) return;
+    vakitImza = imza;
+    while (liste.firstChild) liste.removeChild(liste.firstChild);
     /* Yatsi gectikten sonra siradakiVakit() idx:-1 dondurup ertesi gunun
        ilk vaktini (Imsak) hedefliyor. Eskiden bu durumda TUM vakitler
        'gecti' olarak soluklastiriliyordu — altta "Imsak vaktine kalan"
@@ -658,14 +819,18 @@
   }
 
   /* ---------- ortak istek ------------------------------------------------ */
-  function istek(url, basarili, etiket, basarisiz) {
+  /* sessiz: hata kayda gecer ama ekrandaki "verisi alinamadi" satirini
+     acmaz — yedegi olan ya da arka planda yapilan istekler icin. */
+  function istek(url, basarili, etiket, basarisiz, sessiz) {
     var x = new XMLHttpRequest();
     x.open('GET', url, true);
     x.timeout = 15000;
     function hata(n) {
-      var e = $('#veri-hata');
-      e.textContent = etiket + ' verisi alınamadı (' + n + ')';
-      e.hidden = false;
+      if (!sessiz) {
+        var e = $('#veri-hata');
+        e.textContent = etiket + ' verisi alınamadı (' + n + ')';
+        e.hidden = false;
+      }
       kayit(etiket + ' hatasi: ' + n);
       if (basarisiz) basarisiz(n);
     }
@@ -1137,6 +1302,8 @@
     if (uyandi) {
       kayit('uyandi (' + Math.round((simdi - durumAn) / 1000) + ' sn) — veriler tazeleniyor');
       cihazlariOku();
+      /* bekleme sirasinda 15 dk'lik hava sayaci kaymis olabilir */
+      if (simdi - havaAn > 15 * 60 * 1000) havaDurumu();
     }
     durumAn = simdi;
     sesOku(); agOku(); btOku(); btCihazOku(); cikisOku();
@@ -2060,6 +2227,8 @@
       dg.textContent = btKumandaMi(d) ? 'Kumanda' : 'Bağlı';
       r.appendChild(ad); r.appendChild(dg); ic.appendChild(r);
     });
+    /* Yalnizca kumanda bagliysa panelde secilecek bir sey kalmiyordu. */
+    if (!ses.length) kacisSatiri(ic, 'Ses cihazı eşleştir');
   }
 
 
@@ -2198,7 +2367,12 @@
     else if (hangi === 'ayar') ayarPaneliCiz();
     else if (hangi === 'parlaklik') { parlaklikPaneliCiz(); parlaklikOku(); }
     panelKonumla(kaynak);
-    bolge = panelKontrolleri().length ? 'panel' : 'sekme';
+    /* Panel acikken odak HER ZAMAN panelde. Onceden kontrolu olmayan panelde
+       odak menu cubugunda kaliyordu: panel eski simgenin altinda asili
+       duruyor, kullanici altinda gezinip duruyordu (tvOS Launcher'da ayni
+       hata kullanicidan issue olarak gelmis: "Geri ile cikamiyorum").
+       Kontrol yoksa odakCiz bir kacis satiri ekliyor. */
+    bolge = 'panel';
     odakCiz();
   }
 
@@ -2308,6 +2482,30 @@
       document.querySelectorAll('.menubar-sag .odaklanir'))
       .filter(function (x) { return !x.hidden; });
     return t.concat(d);
+  }
+
+  /* Menu cubugu ogesinin KIMLIGI (sekme: data-gorunum, simge: data-is).
+     sekmeIdx tek basina yetmiyordu: parlaklik simgesi servis cevap verince
+     beliriyor (gizliyken listede yok), sagindaki simgelerin indeksi bir
+     kayiyor ve odak kullanicinin durdugu simgeden komsusuna zipliyordu.
+     sekmeEsitle() liste degistiyse sekmeIdx'i ayni ogeye yeniden baglar;
+     sekmeIdx'i taze listeden hesaplayan yerler sekmeyeGit() kullanir. */
+  var sekmeListe = null;
+  function sekmeAnahtar(e) {
+    return e ? (e.getAttribute('data-gorunum') || e.getAttribute('data-is') || '') : '';
+  }
+  function sekmeEsitle() {
+    var mo = menuOgeleri(), yeni = mo.map(sekmeAnahtar);
+    if (sekmeListe && sekmeListe.join('|') !== yeni.join('|')) {
+      var k = sekmeListe[sekmeIdx], i = k ? yeni.indexOf(k) : -1;
+      if (i >= 0) sekmeIdx = i;
+    }
+    sekmeListe = yeni;
+    return mo;
+  }
+  function sekmeyeGit(idx) {
+    sekmeListe = menuOgeleri().map(sekmeAnahtar);
+    sekmeIdx = idx;
   }
 
   function menuIsi(is, kaynak) {
@@ -2480,7 +2678,7 @@
   function odakCiz() {
     /* Sekmeler ve menu cubugu durum simgeleri tek yatay serit; sekmeIdx
        ikisini birden indeksliyor. */
-    var mo = menuOgeleri();
+    var mo = sekmeEsitle();
     /* Parlaklik simgesi servis susunca GIZLENIYOR; liste kisaliyor ve
        sekmeIdx listenin disinda kalabiliyordu — menu cubugunda odak
        kayboluyordu. panelIdx ile ayni hata sinifi, ayni cozum. */
@@ -2494,6 +2692,12 @@
        Once odakli kontrolu KIMLIGINDEN bul (liste degisse de yerinde
        kalsin), bulunamazsa indeksi listeye kirp. */
     var pk2 = panelKontrolleri(), pbul = -1;
+    /* Panel yeniden cizilince kontrolsuz kalabiliyor. Tek giris noktasi
+       burasi; her panel cizicisine ayri ayri koymak yerine burada yakala. */
+    if (acikPanel && !pk2.length && $('#mb-panel-ic')) {
+      kacisSatiri($('#mb-panel-ic'), 'Ayarlar');
+      pk2 = panelKontrolleri();
+    }
     if (panelSecili) {
       for (var pi = 0; pi < pk2.length; pi++) {
         if (panelAnahtar(pk2[pi]) === panelSecili) { pbul = pi; break; }
@@ -2668,7 +2872,7 @@
       /* Sol/sag gezinirken sayfa ANINDA degisir, odak ust menude kalir —
          ayri bir onay tusuna gerek yok. Sekmelerin sagindaki durum
          simgelerine gecince sayfa degismez, ENTER onlarin panelini acar. */
-      var ogeler = menuOgeleri(), ts = sekmeSayisi();
+      var ogeler = sekmeEsitle(), ts = sekmeSayisi();
       if (sekmeIdx > ogeler.length - 1) sekmeIdx = ogeler.length - 1;
       /* Oklar YALNIZCA odagi gezdirir — sayfa degismez. (Bir ara sag/sol
          gezerken sayfayi da degistiriyordu; kullanici "menuler kaysin
@@ -3023,7 +3227,7 @@
           var sa = kaynakDeger(c, 'time.remain.hour2');
           var dkk = kaynakDeger(c, 'time.remain.minute2');
           if (sa !== null || dkk !== null) {
-            bilgiSatiri('Kalan süre', sureMetni((sa || 0) * 60 + (dkk || 0)));
+            bilgiSatiri('Kalan süre', sureMetni((sa || 0) * 3600 + (dkk || 0) * 60));
           }
         }
       } else {
@@ -3440,7 +3644,7 @@
     if (!document.getElementById('gorunum-' + y)) { kayit('bilinmeyen gorunum: ' + y); return; }
     var sek = Array.prototype.slice.call(document.querySelectorAll('.sekme'));
     for (var i = 0; i < sek.length; i++) {
-      if (sek[i].getAttribute('data-gorunum') === y) { sekmeIdx = i; break; }
+      if (sek[i].getAttribute('data-gorunum') === y) { sekmeyeGit(i); break; }
     }
     kayit('baslatma parametresi -> ' + y);
     /* Cihazlar asenkron geliyor; gorunumDegistir bu anda odaklanacak kontrol
@@ -5250,14 +5454,17 @@
       if (!c) return;
       if (c.closest('.menubar-sag')) {
         bolge = 'sekme';
-        sekmeIdx = Math.max(0, menuOgeleri().indexOf(c));
+        sekmeyeGit(Math.max(0, menuOgeleri().indexOf(c)));
         odakCiz();
         menuIsi(c.getAttribute('data-is'), c);
         return;
       }
       if (c.closest('#mb-panel')) {
         bolge = 'panel';
-        panelIdx = Math.max(0, panelKontrolleri().indexOf(c));
+        /* panelOdakla: yalnizca panelIdx'i yazinca odakCiz eski panelSecili
+           kimligini bulup indeksi GERI aliyordu; Magic Remote ile "Koyu"
+           tiklaninca odakta duran "Acik" uygulaniyordu. */
+        panelOdakla(Math.max(0, panelKontrolleri().indexOf(c)));
         odakCiz();
         panelIsi(c.getAttribute('data-is'));
         return;
@@ -5281,6 +5488,7 @@
     saatiGuncelle();
     setInterval(saatiGuncelle, 20000);
     setInterval(geriSayim, 1000);
+    havaOnbellektenCiz();
     havaDurumu();      setInterval(havaDurumu, 15 * 60 * 1000);
     ezanVakitleri();   setInterval(ezanVakitleri, 6 * 60 * 60 * 1000);
 

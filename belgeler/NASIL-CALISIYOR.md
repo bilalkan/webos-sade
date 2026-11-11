@@ -150,8 +150,25 @@ modelden iyiydi.
 
 Yani: sapma görürseniz **koordinatı düzeltin**, sabit eklemeyin.
 
+Open-Meteo cevap vermezse **MET Norway** (api.met.no, anahtarsız) deneniyor;
+o tek model olduğu için yalnızca yedek. İkisi de düşerse 30 sn, 2 dk, 5 dk
+arayla yeniden deneniyor.
+
 Namaz vakitleri: Aladhan API, `method=13` (Diyanet). `yapilandirma.js`
 içinden değiştirilebilir.
+
+### Açılışta boş kalmama (2.20.0)
+
+Açılışta ağ geç gelince ya da kaynak cevap vermeyince hava ve namaz kutuları
+gizli kalıyordu. Artık ikisi de yerel depoda saklanıyor:
+
+- **Hava**: son başarılı saatlik dizi (`sade.hava`, ~4 KB). Açılışta önce o
+  çiziliyor; 48 saatlik tahmin ertesi gün bile "şu an"ı kapsıyor. Kapsamıyorsa
+  çizilmiyor.
+- **Namaz**: ayın takvimi tek istekle (`sade.ezan`, ~5 KB). Vakitler bir kez
+  hesaplanınca değişmediği için ay içinde ağ hiç gerekmiyor; ayın 20'sinden
+  sonra sonraki ay da sessizce alınıyor. Konum ya da yöntem değişirse
+  önbellek yok sayılıyor.
 
 ## Gün dönümü
 

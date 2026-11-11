@@ -7,7 +7,7 @@ daha fazlası. HOME tuşuna basınca LG'nin ekranı yerine Sade açılır.
 
 https://github.com/user-attachments/assets/34441b90-d8f1-405e-9722-3930fab6229e
 
-**Sürüm 2.19.3** · Kurulum: **[KURULUM.md](KURULUM.md)** (sıfırdan root,
+**Sürüm 2.20.0** · Kurulum: **[KURULUM.md](KURULUM.md)** (sıfırdan root,
 zaten rootlu TV için kısa yol, eski sürümden güncelleme)
 
 ```bash
@@ -18,14 +18,24 @@ git clone https://github.com/bilalkan/webos-sade && cd webos-sade
 
 *Gerçek TV ekranı (LG OLED55B16LA). Yerleşim, widget'lar ve dock kumandayla değiştirilebilir.*
 
+| | |
+|:---:|:---:|
+| ![Güzergâh haritası: altı Boğaz geçişi canlı trafikle, süre ve gecikme](belgeler/guzergah.jpg) | ![Duraklar: E-5 ve TEM'de durak durak süre, hız ve gecikme](belgeler/duraklar.jpg) |
+| **Güzergâhlar**: seçtiğiniz yollar canlı trafikle | **Duraklar**: hangi parçada ne kadar kaybettiğiniz |
+| ![Cihazlar: klima, çamaşır makinesi, buzdolabı, bulaşık makinesi](belgeler/cihazlar.jpg) | ![Denetim Merkezi: dock, tema, yeniden başlatma ve tam kapatma](belgeler/denetim-merkezi.jpg) |
+| **Cihazlar**: LG ThinQ, kumandadan | **Denetim Merkezi**: dock, tema, güç |
+
+*Bu dört görüntü TV'de değil, bilgisayarda aynı kodla 1920×1080 çizildi. Trafik
+TV'nin gerçek bir okumasından, cihazlar örnek veri.*
+
 ## Neler var
 
 | | |
 |---|---|
 | **Kendi ana ekranı** | HOME tuşu LG Home yerine Sade'yi açar |
 | **Widget galerisi** | Solda ve sağda 3'er satır, saatin altında 1 satırlık orta alan. Hangi widget'ın nerede duracağını kumandayla seçersiniz. Hava durumu ve namaz vakitlerinin 2 satırlık büyük ve 1 satırlık küçük hâli var |
-| **Hava durumu** | 5 modelin ortalaması (Open-Meteo), saatlik ve 7 günlük |
-| **Namaz vakitleri** | Diyanet hesabı, sonraki vakte geri sayım |
+| **Hava durumu** | 5 modelin ortalaması (Open-Meteo; cevap vermezse MET Norway): şu an, günün en yüksek ve en düşüğü, sonraki 6 saat. Son veri saklanır, açılışta ağ gecikse de kutu boş kalmaz |
+| **Namaz vakitleri** | Diyanet hesabı, sonraki vakte geri sayım. Ayın takvimi bir kerede alınıp saklanır; ay içinde ağ gerekmez |
 | **LG ThinQ cihazları** | Klima (aç/kapa, sıcaklık, mod), çamaşır makinesi, buzdolabı, bulaşık makinesi. Evde olmayan cihazın widget'ı görünmez, yer kaplamaz |
 | **TV durumu** | RAM, CPU, açık uygulamalar; arka plandakileri tek tuşla kapatma |
 | **Ekran süresi · Uyku · Film modu** | Bugün TV'de ne kadar süre, neyin izlendiği; uyku zamanlayıcısı; tek tuşla sinema görüntü/ses modu |
@@ -120,7 +130,9 @@ belgeler/
   TOMTOM.md             trafik anahtarı
   NASIL-CALISIYOR.md    mekanizma notları
   guzergah-ornek.json   örnek güzergâhlar (İstanbul, altı Boğaz geçişi)
-  ekran.jpg             README'deki ekran görüntüsü
+  ekran.jpg             README'deki ekran görüntüsü (gerçek TV)
+  guzergah.jpg, duraklar.jpg, cihazlar.jpg, denetim-merkezi.jpg
+                        README'deki diğer görüntüler (bilgisayarda çizildi)
 ```
 
 ## Lisans ve kaynaklar
@@ -131,7 +143,7 @@ kendiniz klonluyorsunuz. Yararlanılan işler:
 - [webosbrew/Homebrew Channel](https://github.com/webosbrew/webos-homebrew-channel): kalıcılık altyapısı
 - [throwaway96/slopbro](https://github.com/throwaway96/slopbro): webOS 6 root yöntemi
 - [hbertsch/lgtv-webos-root-launcher](https://github.com/hbertsch/lgtv-webos-root-launcher): HOME tuşunu devralma yöntemi
-- [Open-Meteo](https://open-meteo.com/) · [Aladhan](https://aladhan.com/prayer-times-api): hava ve namaz verisi
+- [Open-Meteo](https://open-meteo.com/) · [MET Norway](https://api.met.no/) (yedek) · [Aladhan](https://aladhan.com/prayer-times-api): hava ve namaz verisi
 - [finans.truncgil.com](https://finans.truncgil.com/) (resmî değil) · [İBB](https://api.ibb.gov.tr/): piyasa ve trafik verisi
 - [TomTom](https://developer.tomtom.com/) Routing · Traffic Incidents · Map Display: yol süresi, kapanmalar, harita
 
