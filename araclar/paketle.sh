@@ -62,8 +62,17 @@ CTL
 # kurulum servisi paketi REDDEDIYOR:
 #   "reason": "ipk verified failed", "errorCode": -5
 # (25 Ekim'de gercek TV'de olculdu.) Ust seviye dizini ACIKCA veriyoruz.
-( cd "$T/control" && COPYFILE_DISABLE=1 tar --format=ustar -czf "$T/control.tar.gz" control )
-( cd "$T/data"    && COPYFILE_DISABLE=1 tar --format=ustar -czf "$T/data.tar.gz" usr )
+# Sahip: arsiv basliklarina paketleyenin kullanici/grup adi yaziliyordu
+# (or. "bilal staff"). Paket paylasilinca bu da gidiyor; TV'de zaten root
+# kuruyor. Sahibi root:root (0:0) yapiyoruz. macOS bsdtar ve GNU tar farkli
+# secenek aliyor.
+if tar --version 2>/dev/null | grep -q bsdtar; then
+  SAHIP="--uid 0 --gid 0 --uname root --gname root"
+else
+  SAHIP="--owner=0 --group=0 --numeric-owner"
+fi
+( cd "$T/control" && COPYFILE_DISABLE=1 tar --format=ustar $SAHIP -czf "$T/control.tar.gz" control )
+( cd "$T/data"    && COPYFILE_DISABLE=1 tar --format=ustar $SAHIP -czf "$T/data.tar.gz" usr )
 
 IPK="$CIKTI/${ID}_${SURUM}_all.ipk"
 MT=$(date +%s)
