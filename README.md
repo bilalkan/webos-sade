@@ -14,6 +14,11 @@ zaten rootlu TV için kısa yol, eski sürümden güncelleme)
 git clone https://github.com/bilalkan/webos-sade && cd webos-sade
 ```
 
+Hazır paket: **[Releases](https://github.com/bilalkan/webos-sade/releases/latest)**
+(`.ipk`, `bash araclar/kur.sh <dosya>` ile kurulur). İçindeki konum örnek
+ayardır (İstanbul); kendi konumunuz için `sade/yapilandirma.js`'i düzenleyip
+`bash araclar/paketle.sh` ile kendiniz paketleyin.
+
 ![Sade ana ekranı: hava durumu, saat, namaz vakitleri, yol durumu, TV durumu ve dock](belgeler/ekran.jpg)
 
 *Gerçek TV ekranı (LG OLED55B16LA). Yerleşim, widget'lar ve dock kumandayla değiştirilebilir.*
