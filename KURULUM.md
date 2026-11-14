@@ -5,7 +5,7 @@ Tahmini süre 2–3 saat. Acele etmeyin, her adımın sonundaki **kontrolü**
 
 Önce [GUVENLIK.md](GUVENLIK.md) okunmalı.
 
-Bu belge **Sade 2.20.0** içindir (sürüm: `sade/appinfo.json`).
+Bu belge **Sade 2.20.1** içindir (sürüm: `sade/appinfo.json`).
 
 ## Hangi yoldan gideceksiniz?
 
@@ -399,7 +399,7 @@ bash araclar/servis-kur.sh
 `kur.sh` uygulamayı başlatmaz; TV'de o an ne izleniyorsa önde kalır.
 Yeni sürüm bir sonraki HOME basışında açılır.
 
-> **Kontrol:** `kur.sh` "OK — kurulu: 2.20.0" yazmalı. Yazmıyorsa:
+> **Kontrol:** `kur.sh` "OK — kurulu: 2.20.1" yazmalı. Yazmıyorsa:
 > `bash araclar/root-ssh.sh 'restart appinstalld'` ve tekrar deneyin.
 
 ## Neden bu testler var

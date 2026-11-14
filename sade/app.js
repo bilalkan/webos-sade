@@ -4561,9 +4561,15 @@
       return;
     }
     if (yon) yon.textContent = v.baslik || ' ';
+    /* Iki kart da 2 guzergah sigdiriyor (kucuk 2x52 px satir; buyukte 3. blok
+       alttaki Anadolu/Avrupa yakasina biniyordu). Guzergah dosyasinda 6 Bogaz
+       gecisi var — hepsini basinca kart tasip galeride komsu kartlarin ustune
+       cikiyordu (14 Kasim). Durak widget'i gibi dosyadaki ilk ikisi; hepsi
+       haritada. */
+    var yollar = v.yollar.slice(0, 2);
     var en = 1;
-    v.yollar.forEach(function (y) { if (y.dk > en) en = y.dk; });
-    v.yollar.forEach(function (y) {
+    yollar.forEach(function (y) { if (y.dk > en) en = y.dk; });
+    yollar.forEach(function (y) {
       var d = y.hata ? 'yok' : yolDuzey(y), pr = yolParca(y.ad);
 
       /* kucuk: [levha] hedef ........ 66 dk  +20 dk (renkli metin, hap degil) */
